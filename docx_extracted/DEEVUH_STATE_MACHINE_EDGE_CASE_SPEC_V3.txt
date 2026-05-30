@@ -1,0 +1,81 @@
+DEEVUH — State Machine & Edge-Case Lifecycle Specification V3
+This document defines the operational lifecycle states, state transitions, edge-case handling, and business logic behaviors for the Deevuh e-commerce platform.
+1. High-Level State Machine
+
+2. Lifecycle Design Philosophy
+Prevent inconsistent order states
+Ensure payment reliability
+Protect against duplicate transactions
+Maintain accurate inventory tracking
+Provide operational visibility for admins
+Gracefully handle failed or interrupted user flows
+3. Cart Lifecycle States
+4. Checkout Lifecycle States
+Checkout Initiated
+Shipping Details Submitted
+Coupon Validation
+Payment Request Created
+Redirected to PayU
+Awaiting Payment Confirmation
+5. Payment State Machine
+6. Order Lifecycle States
+7. Edge-Case Handling
+Duplicate Payment Webhooks
+Webhook idempotency validation
+Ignore already processed transactions
+Prevent duplicate orders
+Payment Success But Order Creation Failure
+Retry order creation
+Log incident
+Admin visibility for manual intervention
+Coupon Misuse
+Validate expiry
+Validate usage limits
+Validate minimum purchase amount
+Inventory Race Conditions
+Validate stock during checkout
+Re-check stock before order creation
+Session Expiry During Checkout
+Persist cart state
+Allow checkout resume
+Abandoned Cart Detection
+Track last activity timestamp
+Mark inactive carts automatically
+8. Failure Recovery Strategy
+Graceful API error handling
+Retry-safe payment verification
+Admin visibility into failed flows
+Logging for operational debugging
+Webhook retry support
+9. State Transition Rules
+Orders cannot move to DELIVERED before SHIPPED
+Payments must be SUCCESS before order confirmation
+Coupons cannot apply after checkout completion
+Cancelled orders cannot transition to PROCESSING
+Abandoned carts cannot directly become DELIVERED
+10. Final Operational Philosophy
+The lifecycle and state machine architecture prioritizes operational reliability, payment consistency, and clean admin workflows while remaining lightweight enough for an MVP-stage fashion e-commerce platform.
+
+--- TABLE 1 ---
+State | Description
+ACTIVE | User actively interacting with cart
+ABANDONED | No checkout completion after inactivity threshold
+CONVERTED | Cart successfully converted into order
+EXPIRED | Old inactive cart archived/invalidated
+
+--- TABLE 2 ---
+Payment State | Description
+PENDING | Payment initiated but not confirmed
+SUCCESS | Payment successfully verified
+FAILED | Payment failure
+CANCELLED | User cancelled payment
+TIMEOUT | Payment session expired
+
+--- TABLE 3 ---
+Order State | Description
+CREATED | Order successfully generated
+PROCESSING | Admin preparing order
+SHIPPED | Order dispatched
+DELIVERED | Order completed
+CANCELLED | Order cancelled
+REFUNDED | Payment refunded

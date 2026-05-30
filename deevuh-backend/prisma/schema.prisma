@@ -1,0 +1,187 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CartStatus {
+  active
+  abandoned
+  converted
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum OrderStatus {
+  CREATED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  email           String   @unique @db.VarChar(255)
+  phone           String?  @db.VarChar(50)
+  password        String?  @db.Text
+  googleId        String?  @unique @map("google_id")
+  authProvider    String   @default("LOCAL") @map("auth_provider")
+  avatar          String?  @db.Text
+  tokenVersion    Int      @default(0) @map("token_version")
+  isEmailVerified Boolean  @default(false) @map("is_email_verified")
+  carts           Cart[]
+  orders          Order[]
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Product {
+  id          String           @id @default(uuid()) @db.Uuid
+  title       String           @db.VarChar(255)
+  description String           @db.Text
+  basePrice   Decimal          @map("base_price") @db.Decimal(10, 2)
+  category    String           @db.VarChar(100)
+  isActive    Boolean          @default(true) @map("is_active")
+  variants    ProductVariant[]
+  images      ProductImage[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id         String      @id @default(uuid()) @db.Uuid
+  productId  String      @map("product_id") @db.Uuid
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       String      @db.VarChar(50)
+  price      Decimal     @db.Decimal(10, 2)
+  stockQty   Int         @map("stock_qty")
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid()) @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageUrl  String  @map("image_url") @db.Text
+
+  @@map("product_images")
+}
+
+model Cart {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String?    @map("user_id") @db.Uuid
+  user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status         CartStatus @default(active)
+  lastActivityAt DateTime   @updatedAt @map("last_activity_at")
+  items          CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  cartId           String         @map("cart_id") @db.Uuid
+  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productVariantId String         @map("product_variant_id") @db.Uuid
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+
+  @@map("cart_items")
+}
+
+model Order {
+  id                  String        @id @default(uuid()) @db.Uuid
+  userId              String?       @map("user_id") @db.Uuid
+  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shippingAddress     String        @map("shipping_address") @db.Text
+  shippingName        String        @map("shipping_name") @db.VarChar(255)
+  shippingPhone       String        @map("shipping_phone") @db.VarChar(50)
+  couponId            String?       @map("coupon_id") @db.Uuid
+  coupon              Coupon?       @relation(fields: [couponId], references: [id])
+  totalAmount         Decimal       @map("total_amount") @db.Decimal(10, 2)
+  discountAmount      Decimal       @default(0.00) @map("discount_amount") @db.Decimal(10, 2)
+  gstAmount           Decimal       @default(0.00) @map("gst_amount") @db.Decimal(10, 2)
+  finalAmount         Decimal       @map("final_amount") @db.Decimal(10, 2)
+  paymentGatewayTxnId String?       @unique @map("payment_gateway_txn_id") @db.VarChar(255)
+  paymentStatus       PaymentStatus @default(PENDING) @map("payment_status")
+  orderStatus         OrderStatus   @default(CREATED) @map("order_status")
+  items               OrderItem[]
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  orderId          String         @map("order_id") @db.Uuid
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariantId String         @map("product_variant_id") @db.Uuid
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+  unitPrice        Decimal        @map("unit_price") @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model Coupon {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String   @unique @db.VarChar(50)
+  discountType  String   @map("discount_type") @db.VarChar(20)
+  discountValue Decimal  @map("discount_value") @db.Decimal(10, 2)
+  minPurchase   Decimal? @map("min_purchase") @db.Decimal(10, 2)
+  maxUses       Int?     @map("max_uses")
+  usedCount     Int      @default(0) @map("used_count")
+  isActive      Boolean  @default(true) @map("is_active")
+  expiresAt     DateTime @map("expires_at")
+  orders        Order[]
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("coupons")
+}
+
+model AdminUser {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.Text
+  role         String   @default("ADMIN") @db.VarChar(50)
+  tokenVersion Int      @default(0) @map("token_version")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @db.VarChar(255)
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("email_verification_tokens")
+}
+
+model AuthLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String   @db.VarChar(50)
+  ip        String?  @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("auth_logs")
+}

@@ -1,0 +1,90 @@
+DEEVUH — API Routing & Third-Party Integration Map V3
+This document defines the API structure, routing organization, request flow, and third-party integrations used within the Deevuh fashion e-commerce platform.
+1. High-Level API & Integration Architecture
+
+2. API Architecture Overview
+REST API-based backend architecture
+Single monolithic backend
+Centralized authentication middleware
+Modular route organization
+Secure third-party service integrations
+Future-ready scalable route structure
+3. API Route Structure
+/api/auth
+POST /login
+POST /register
+POST /logout
+GET /me
+/api/products
+GET /
+GET /:id
+POST /
+PUT /:id
+DELETE /:id
+/api/cart
+GET /
+POST /add
+PUT /update
+DELETE /remove
+/api/checkout
+POST /create-order
+POST /apply-coupon
+POST /verify-payment
+/api/orders
+GET /
+GET /:id
+PUT /status
+/api/admin
+GET /dashboard
+GET /analytics
+GET /abandoned-carts
+/api/coupons
+POST /create
+PUT /:id
+DELETE /:id
+GET /
+/api/uploads
+POST /image
+4. Authentication Flow
+Admin logs in via frontend
+Backend validates credentials
+JWT token generated
+Protected routes require token validation
+Unauthorized access blocked
+5. PayU Integration Flow
+Customer initiates checkout
+Backend creates PayU payment request
+Customer redirected to PayU
+Payment completed
+PayU sends callback/webhook
+Backend verifies transaction
+Order marked successful
+Confirmation email triggered
+6. Resend Email Integration
+Order confirmation
+Payment confirmation
+Admin notifications
+Future abandoned cart reminders
+7. Cloudinary Media Integration
+Admin uploads product images
+Backend sends images to Cloudinary
+Optimized URLs returned
+Frontend renders optimized media
+8. Request Lifecycle
+Frontend sends API request
+Middleware validates request
+Authentication checked (if protected)
+Business logic executed
+Database queried/updated
+Third-party integrations triggered if required
+Response returned to frontend
+9. Security Requirements
+JWT authentication
+Protected admin routes
+HTTPS-only API communication
+Webhook signature verification
+Environment variable protection
+Input validation
+Rate limiting
+10. Technical Direction
+The API and integration architecture is intentionally designed to remain lean, maintainable, and operationally efficient for the MVP launch phase. The system prioritizes simplicity, checkout reliability, and admin usability while preserving the flexibility to scale in future phases.

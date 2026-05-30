@@ -1,0 +1,83 @@
+DEEVUH V3
+Document 10: Project Configuration & Parallel Agent Routing Spec
+1. Multi-Agent Workspace Pathing & Isolation
+To prevent git merge conflicts, dirty overwrites, or code regression, the Antigravity Orchestrator will segregate tasks into three highly specialized, parallel subagents. Each subagent operates inside a locked directory perimeter.
+Subagent A: Frontend UI Specialist (agent-frontend)
+Target Directory Perimeters: `/client/src/components/**/*`, `/client/src/pages/**/*`, `/client/src/styles/**/*`
+Context Inputs: `DEEVUH_PRD_V3.docx`, `DEEVUH_APP_FLOW_V3.docx`, and real-time design tokens stream from the Google Stitch MCP Server.
+Execution Tasks: Scaffold the mobile-first React storefront (Homepage, Listing, Detail, Cart, and Checkout views). Implement lazy image rendering hooks pointing to Cloudinary optimization assets. Build the non-technical founder Admin Dashboard UI panels (Overview, Products, Orders, Customers, Abandoned Carts, Coupons).
+Subagent B: Core API & Business Logic Architect (agent-backend-core)
+Target Directory Perimeters: `/server/src/routes/**/*`, `/server/src/controllers/**/*`, `/server/src/middleware/**/*`
+Context Inputs: `DEEVUH_API_ROUTING_INTEGRATION_MAP_V3.docx`, `DEEVUH_STATE_MACHINE_EDGE_CASE_SPEC_V3.docx`, `DEEVUH_Security_Compliance_Guardrail_Policy_V1.docx`.
+Execution Tasks: Write the Express.js stateless APIs and modular route files mapping directly to `/api/auth`, `/api/products`, `/api/cart`, `/api/orders`, `/api/coupons`, and `/api/uploads`. Inject the centralized JWT authentication validation middleware to guard administrative scopes. Enforce structural input validation and rate-limiting blocks on all unprotected endpoint entries.
+Subagent C: Data & Integration Engineer (agent-data-integrations)
+Target Directory Perimeters: `/server/src/database/**/*`, `/server/src/integrations/**/*`
+Context Inputs: `DEEVUH_ERD_SCHEMA_SPEC_V3.docx`, `DEEVUH_Sandbox_Mocking_Synthetic_Data_Specification_V1.docx`, `DEEVUH_Graceful_Degradation_High_Availability_Fallback_Playbook_V1.docx`.
+Execution Tasks: Generate relational migration scripts for PostgreSQL (`users`, `products`, `product_variants`, `product_images`, `carts`, `cart_items`, `orders`, `order_items`, `coupons`, `admin_users`). Construct the abstract connection layers linking out to PayU payment handlers, Resend mail utilities, and Cloudinary media uploading streams. Seed sandbox testing states utilizing structured synthetic profiles and mock data patterns.
+2. Real-Time Intercept Hooks & JSON Control Rules
+Antigravity 2.0 uses automated gatekeeping interceptors. If a subagent modifies a high-stakes, revenue-impacting pathway, the system freezes the branch execution state until a manual evaluation occurs.
+3. Pre-Flight Verification Framework (/grill-me Directive)
+Before Antigravity 2.0 unlocks parallel subagent compilation loops, the main orchestrator agent will prompt you with a targeted diagnostic questionnaire to clarify latent operational boundaries.
+Question 1 (Currency & Local Taxes): Since the primary infrastructure is optimized for Indian consumers near local cloud regions to streamline latencies, should base product prices (DECIMAL) default explicitly to INR (₹) format values, and do we want basic Indian GST rounding calculations computed during checkout?
+Question 2 (Abandoned Cart Threshold): For the automated state transitions (ACTIVE → ABANDONED), what exact inactivity duration threshold should cron triggers validate against (e.g., 30 minutes, 2 hours, or 24 hours)?
+Question 3 (Coupon Concurrency): Can multiple coupons combine inside a unified transaction, or does order generation strictly evaluate only one active code maximum?
+4. Cross-Service Dependency Order
+To ensure error-free assembly, subagents follow a strict topological sync sequence. A step cannot run until its precursor satisfies its structural test metrics.
+Phase 1: Data Architecture Init (Worker: agent-data-integrations): Constraint: Create tables, constraints, indexes, and synthetic data seeds on Neon/Supabase. Pass structural database connection validation tests.
+Phase 2: Core REST Endpoint Foundations (Worker: agent-backend-core): Constraint: Import schema parameters, formulate authentication walls, establish basic product read routes, and parse validation pipelines.
+Phase 3: Service Mapping & Resilience Implementation (Worker: agent-data-integrations): Constraint: Implement PayU callback loops, Resend email triggers, and Cloudinary error-handling fallbacks using placeholder strategies.
+Phase 4: Stitch Canvas Extraction (Worker: agent-frontend): Constraint: Pull variables from the Stitch MCP channel. Build user interface layouts and bind client actions to backend endpoints. Run validation over simulated mobile viewport layouts.
+
+--- TABLE 1 ---
+System Workspace Configuration Block
+• Project Name: DEEVUH Fashion Storefront (MVP V1)
+• Orchestration Hub: Google Antigravity 2.0
+• External Source Injectors: Model Context Protocol (MCP) → Google Stitch Engine
+• Target Stack: React.js (Vercel) + Node.js/Express.js Monolith (Render/Railway) + PostgreSQL (Neon/Supabase)
+
+--- TABLE 2 ---
+{
+  "antigravity_intercept_policies": [
+    {
+      "hook_id": "payment_integrity_gate",
+      "target_files": [
+        "/server/src/controllers/checkoutController.js",
+        "/server/src/routes/webhookRoutes.js"
+      ],
+      "assert_logic": {
+        "contains_idempotency_check": true,
+        "contains_webhook_signature_verification": true,
+        "enforces_state_lock": "SUCCESS before order created"
+      },
+      "on_violation": "HALT_AND_RAISE_ALERT"
+    },
+    {
+      "hook_id": "state_machine_guardrail",
+      "target_files": [
+        "/server/src/controllers/orderController.js"
+      ],
+      "assert_logic": {
+        "blocked_transitions": [
+          "DELIVERED -> PROCESSING",
+          "FAILED_PAYMENT -> ORDER_CREATED",
+          "CANCELLED -> PROCESSING"
+        ]
+      },
+      "on_violation": "REJECT_COMMIT"
+    },
+    {
+      "hook_id": "architecture_anti_complexity_filter",
+      "target_directories": [
+        "/server/src"
+      ],
+      "forbidden_tokens": [
+        "kafka",
+        "kubernetes",
+        "redis",
+        "docker-compose.prod.yml",
+        "microservice"
+      ],
+      "on_violation": "WARN_FOUNDER_OF_OVERENGINEERING"
+    }
+  ]
+}

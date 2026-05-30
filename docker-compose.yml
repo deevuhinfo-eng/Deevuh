@@ -1,0 +1,83 @@
+services:
+  deevuh-postgres:
+    image: postgres:15-alpine
+    container_name: deevuh-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-deevuh_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_vault_pass}
+      POSTGRES_DB: deevuh_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    networks:
+      - deevuh-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deevuh_admin -d deevuh_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  deevuh-redis:
+    image: redis:7-alpine
+    container_name: deevuh-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_production_cache:/data
+    networks:
+      - deevuh-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  deevuh-meilisearch:
+    image: getmeili/meilisearch:v1.3
+    container_name: deevuh-meilisearch
+    restart: always
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-search_secure_token}
+    volumes:
+      - meili_production_index:/meili_data
+    networks:
+      - deevuh-network
+
+  deevuh-backend:
+    build:
+      context: ./deevuh-backend
+      dockerfile: Dockerfile
+      network: host
+    container_name: deevuh-backend
+    restart: always
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-deevuh_admin}:${DB_PASSWORD:-secure_vault_pass}@deevuh-postgres:5432/deevuh_prod
+      REDIS_URL: redis://deevuh-redis:6379
+      MEILI_URL: http://deevuh-meilisearch:7700
+    depends_on:
+      deevuh-postgres:
+        condition: service_healthy
+      deevuh-redis:
+        condition: service_healthy
+      deevuh-meilisearch:
+        condition: service_started
+    networks:
+      - deevuh-network
+
+volumes:
+  postgres_production_data:
+  redis_production_cache:
+  meili_production_index:
+
+networks:
+  deevuh-network:
+    driver: bridge

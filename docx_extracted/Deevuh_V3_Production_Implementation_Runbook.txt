@@ -1,0 +1,379 @@
+DEEVUH V3 PRODUCTION PRODUCTION WORKFLOW RUNBOOK
+Parallel Agent Routing Architecture & Deployment Orchestration Matrix
+1. Multi-Agent Operational Pathing & Isolation Perimeters
+To achieve rapid implementation speed without introducing git code regression, structural file overrides, or merge conflicts, the Antigravity v2 engine distributes code construction across three parallel, directory-isolated workspaces. Each agent maintains strict context boundaries and reads tailored specification maps.
+2. Phase-by-Phase Technical Implementation Matrix
+Phase 1: Data Layers, Prisma Modeling & Normalization
+The data initialization phase builds clean relational normalization, eliminates legacy vendors, and configures unique indexes for fast data queries in the admin panel. The primary database running inside the Docker network replaces cloud layers entirely.
+• Active Assigned Agent: Subagent C: Data Architecture Init & Integrations Specialist (agent-data-integrations)
+• Target Files Modified: deevuh-backend/prisma/schema.prisma, deevuh-backend/prisma/seed.ts
+Definitive V3 Database Architecture Specification:
+Phase 2: Core REST Framework & Administrative RBAC Router
+This phase sets up input filters and authentication barriers across protected paths. Any data modifications (adding products, altering inventory quantities, managing promo coupons) require administrative verification hooks to block untrusted requests.
+• Active Assigned Agent: Subagent B: Core API & Business Logic Architect (agent-backend-core)
+• Target Files Modified: deevuh-backend/src/middleware/adminGuard.ts, deevuh-backend/src/modules/products/products.routes.ts
+Phase 3: PayU Integration & State-Machine Webhook Security
+This phase replaces legacy configurations with the secure PayU checkout flow. The backend generates cryptographically signed data parameters for payment processing, and implements verified webhooks to capture successful checkout operations safely inside database transactions.
+• Active Assigned Agent: Subagent B: Core API & Business Logic Architect (agent-backend-core)
+• Target Files Modified: deevuh-backend/src/modules/payments/payments.service.ts, deevuh-backend/src/modules/payments/payments.routes.ts
+Phase 4: Client Interaction Map & Administrative Dashboards
+This phase resolves frontend route mismatches (wishlist param calls and address fields) and implements the administrative panel tools requested by the client, including cart abandonment trackers, revenue aggregates, and coupon creation tools.
+• Active Assigned Agent: Subagent A: Frontend UI Specialist (agent-frontend)
+• Target Files Modified: deevuh-frontend/src/lib/api.ts, deevuh-frontend/src/app/admin/analytics/page.tsx
+Phase 5: Single-Droplet DevOps Optimization & Docker Network Setup
+To achieve a flat, low-cost hosting target, this phase bundles the backend infrastructure onto a single virtual server. Using optimized Docker configuration files, your Express app, PostgreSQL database, Redis instance, and Meilisearch engines run together inside a secure, self-contained network.
+• Active Assigned Agent: Subagent C: Data Architecture Init & Integrations Specialist (agent-data-integrations)
+• Target Files Modified: ./docker-compose.yml, ./nginx.conf
+3. Chronological Operational Flow Rules
+To guarantee error-free deployment and protect data integrity, subagents must perform setup tasks in a strict chronological order. No development step may begin until its required precursor step passes verification checks.
+
+1. Infrastructure Init Stage: Subagent C deploys the PostgreSQL container configuration and generates the local database layout using 'prisma migrate deploy'.
+2. Schema Mapping Hook Validation: Subagent B imports data types, locks routing frameworks, and confirms validation parameters pass local tests.
+3. PayU Integration Pipeline Testing: Subagent B writes payment routing logic, webhook verification handlers, and transactional database constraints.
+4. Storefront Canvas Integration: Subagent A connects frontend components to verified backend routes and completes final layout checks across mobile viewports.
+
+--- TABLE 1 ---
+CRITICAL ARCHITECTURAL PIVOT CONFIRMATION:
+Per Deevuh V3 technical direction updates, this deployment architecture eliminates temporary shared clusters (Render, Railway, Supabase, Neon) to aggregate the entire stack into an isolated, hyper-efficient, containerized environment running within a single DigitalOcean droplet. Asset streaming utilizes direct Cloudinary APIs. Checkout state-machine synchronization routes over PayU. This runbook details structural paths, code blocks, and explicit parallel Antigravity v2 engineering subagent assignments.
+
+--- TABLE 2 ---
+Antigravity v2 Parallel Agent Identity | Locked Directory Perimeter | Context Constraints & Mapping Scope
+Subagent A: Frontend UI Specialist
+(agent-frontend) | deevuh-frontend/src/app/**/*
+deevuh-frontend/src/components/**/* | DEEVUH_PRD_V3.docx
+DEEVUH_APP_FLOW_V3.docx
+Storefront Views & Control Dashboards UI
+Subagent B: Core API / Logic Architect
+(agent-backend-core) | deevuh-backend/src/routes/**/*
+deevuh-backend/src/controllers/**/*
+deevuh-backend/src/middleware/**/* | DEEVUH_TRD_V3.docx
+DEEVUH_STATE_MACHINE_EDGE_CASE_SPEC_V3.docx
+PayU, JWT Auth, Router Trees, Aggregates
+Subagent C: Infrastructure & Integrations
+(agent-data-integrations) | deevuh-backend/prisma/**/*
+deevuh-backend/src/shared/**/*
+./docker-compose.yml | DEEVUH_ERD_SCHEMA_SPEC_V3.docx
+DEEVUH_SYSTEM_ARCHITECTURE_V3.docx
+Docker Orchestration, Prisma Migration, Cron Jobs
+
+--- TABLE 3 ---
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CartStatus {
+  active
+  abandoned
+  converted
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum OrderStatus {
+  CREATED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @db.VarChar(255)
+  email      String   @unique @db.VarChar(255)
+  phone      String?  @db.VarChar(50)
+  carts      Cart[]
+  orders     Order[]
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Product {
+  id          String           @id @default(uuid()) @db.Uuid
+  title       String           @db.VarChar(255)
+  description String           @db.Text
+  basePrice   Decimal          @db.Decimal(10, 2) @map("base_price")
+  category    String           @db.VarChar(100)
+  isActive    Boolean          @default(true) @map("is_active")
+  variants    ProductVariant[]
+  images      ProductImage[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id         String      @id @default(uuid()) @db.Uuid
+  productId  String      @db.Uuid @map("product_id")
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       String      @db.VarChar(50)
+  price      Decimal     @db.Decimal(10, 2)
+  stockQty   Int         @map("stock_qty")
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid()) @db.Uuid
+  productId String  @db.Uuid @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageUrl  String  @db.Text @map("image_url")
+
+  @@map("product_images")
+}
+
+model Cart {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String?    @db.Uuid @map("user_id")
+  user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status         CartStatus @default(active)
+  lastActivityAt DateTime   @updatedAt @map("last_activity_at")
+  items          CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  cartId           String         @db.Uuid @map("cart_id")
+  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productVariantId String         @db.Uuid @map("product_variant_id")
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+
+  @@map("cart_items")
+}
+
+model Order {
+  id                  String        @id @default(uuid()) @db.Uuid
+  userId              String?       @db.Uuid @map("user_id")
+  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shippingAddress     String        @db.Text @map("shipping_address")
+  shippingName        String        @db.VarChar(255) @map("shipping_name")
+  shippingPhone       String        @db.VarChar(50) @map("shipping_phone")
+  couponId            String?       @db.Uuid @map("coupon_id")
+  coupon              Coupon?       @relation(fields: [couponId], references: [id])
+  totalAmount         Decimal       @db.Decimal(10, 2) @map("total_amount")
+  discountAmount      Decimal       @default(0.00) @db.Decimal(10, 2) @map("discount_amount")
+  finalAmount         Decimal       @db.Decimal(10, 2) @map("final_amount")
+  paymentGatewayTxnId String?       @unique @db.VarChar(255) @map("payment_gateway_txn_id")
+  paymentStatus       PaymentStatus @default(PENDING) @map("payment_status")
+  orderStatus         OrderStatus   @default(CREATED) @map("order_status")
+  items               OrderItem[]
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  orderId          String         @db.Uuid @map("order_id")
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariantId String         @db.Uuid @map("product_variant_id")
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+
+  @@map("order_items")
+}
+
+model Coupon {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique @db.VarChar(50)
+  discountType String   @db.VarChar(20) @map("discount_type")
+  discountValue Decimal  @db.Decimal(10, 2) @map("discount_value")
+  expiresAt    DateTime @map("expires_at")
+  orders       Order[]
+
+  @@map("coupons")
+}
+
+model AdminUser {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.Text @map("password_hash")
+  role         String   @default("ADMIN") @db.VarChar(50)
+
+  @@map("admin_users")
+}
+
+--- TABLE 4 ---
+// Location: deevuh-backend/src/middleware/adminGuard.ts
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+export interface AuthenticatedRequest extends Request {
+  user?: { id: string; role: string; email: string };
+}
+
+export const adminGuard = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ status: 'error', message: 'Authentication badge missing from layout header.' });
+      return;
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'fallback_secret') as any;
+    
+    if (decoded.role !== 'ADMIN') {
+      res.status(403).json({ status: 'error', message: 'Access denied: Administrative privileges mandatory.' });
+      return;
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ status: 'error', message: 'Authorization token validation expired or invalid.' });
+  }
+};
+
+--- TABLE 5 ---
+// Location: deevuh-backend/src/modules/payments/payments.service.ts
+import crypto from 'crypto';
+import { prisma } from '../../config/database';
+
+export const generatePayUHash = (txnid: string, amount: string, productinfo: string, firstname: string, email: string): string => {
+  const key = process.env.PAYU_MERCHANT_KEY || '';
+  const salt = process.env.PAYU_MERCHANT_SALT || '';
+  
+  // Strict PayU Sequence Contract: key|txnid|amount|productinfo|firstname|email|||||||||||salt
+  const sequence = `${key}|${txnid}|${amount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`;
+  return crypto.createHash('sha512').update(sequence).digest('hex');
+};
+
+export const processPayUWebhook = async (payload: any): Promise<boolean> => {
+  const { txnid, amount, status, hash, productinfo, firstname, email } = payload;
+  const key = process.env.PAYU_MERCHANT_KEY || '';
+  const salt = process.env.PAYU_MERCHANT_SALT || '';
+  
+  // Verify response signatures using webhook verification rules
+  const reverseSequence = `${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+  const computedHash = crypto.createHash('sha512').update(reverseSequence).digest('hex');
+  
+  if (computedHash !== hash) {
+    throw new Error('Tampered payment signature detected. Webhook payload rejected.');
+  }
+
+  if (status === 'success') {
+    // Concurrency Protection: Wrap inventory deductions and transitions inside a database transaction block
+    await prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
+        where: { paymentGatewayTxnId: txnid },
+        data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+        include: { items: true }
+      });
+
+      for (const item of order.items) {
+        await tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stockQty: { decrement: item.quantity } }
+        });
+      }
+    });
+    return true;
+  }
+  return false;
+};
+
+--- TABLE 6 ---
+// Location: deevuh-backend/src/modules/admin/admin.controller.ts
+import { Response } from 'express';
+import { prisma } from '../../config/database';
+import { AuthenticatedRequest } from '../../middleware/adminGuard';
+
+export const getRevenueTelemetry = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // Aggregation query: Calculate total historical revenue from successful paid checkouts
+    const salesAggregate = await prisma.order.aggregate({
+      where: { paymentStatus: 'SUCCESS' },
+      _sum: { finalAmount: true },
+      _count: { id: true },
+      _avg: { finalAmount: true }
+    });
+
+    // Query active cart abandonment data configurations across time thresholds
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const abandonedCartsCount = await prisma.cart.count({
+      where: {
+        status: 'active',
+        lastActivityAt: { lte: thirtyMinutesAgo }
+      }
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        grossRevenue: salesAggregate._sum.finalAmount || 0.00,
+        totalPaidOrders: salesAggregate._count.id || 0,
+        averageOrderValue: salesAggregate._avg.finalAmount || 0.00,
+        activeAbandonedCarts: abandonedCartsCount
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+--- TABLE 7 ---
+# Location: ./docker-compose.yml
+services:
+  deevuh-postgres:
+    image: postgres:15-alpine
+    container_name: deevuh-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-deevuh_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_vault_pass}
+      POSTGRES_DB: deevuh_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    networks:
+      - deevuh-network
+
+  deevuh-redis:
+    image: redis:7-alpine
+    container_name: deevuh-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_production_cache:/data
+    networks:
+      - deevuh-network
+
+  deevuh-meilisearch:
+    image: getmeili/meilisearch:v1.3
+    container_name: deevuh-meilisearch
+    restart: always
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-search_secure_token}
+    volumes:
+      - meili_production_index:/meili_data
+    networks:
+      - deevuh-network
+
+volumes:
+  postgres_production_data:
+  redis_production_cache:
+  meili_production_index:
+
+networks:
+  deevuh-network:
+    driver: bridge

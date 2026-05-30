@@ -1,0 +1,59 @@
+DEEVUH — System Architecture V3
+This document outlines the technical architecture for the Deevuh fashion e-commerce platform. The system is designed as a lean MVP-focused architecture optimized for reliability, low operational cost, maintainability, and future scalability.
+1. High-Level Architecture
+
+2. Core Architecture Components
+Frontend Layer
+React.js-based customer storefront
+Responsive mobile-first UI
+Hosted on Vercel
+SEO-friendly routing
+Optimized image rendering
+Admin Dashboard
+React-based admin interface
+Product management
+Order management
+Revenue tracking
+Abandoned cart monitoring
+Backend Layer
+Node.js + Express.js monolith
+REST API architecture
+Authentication & authorization
+Payment processing
+Coupon and promo logic
+Cart and order management
+Database Layer
+PostgreSQL database
+Hosted on Neon or Supabase
+Transactional consistency
+Relational schema for e-commerce workflows
+External Services
+PayU for payment processing
+Resend for transactional emails
+Cloudinary for product image hosting
+3. Request Flow
+Customer opens frontend application
+Frontend communicates with backend APIs
+Backend validates requests and business logic
+Backend reads/writes data from PostgreSQL
+Backend communicates with external services when required
+Response returned to frontend
+Frontend updates UI dynamically
+4. Hosting Strategy
+5. Architecture Philosophy
+The architecture intentionally avoids premature complexity such as microservices, Kubernetes, distributed systems, or advanced infrastructure layers. The focus is on shipping a stable, maintainable, and conversion-focused e-commerce platform suitable for an early-stage fashion brand.
+6. Future Scalability
+Migration to DigitalOcean infrastructure
+Redis caching layer if traffic increases
+CDN integration
+Advanced analytics
+Search optimization
+Inventory management improvements
+
+--- TABLE 1 ---
+Component | Hosting/Provider
+Frontend Hosting | Vercel
+Backend Hosting | Render or Railway
+Database Hosting | Neon or Supabase
+Image Hosting | Cloudinary
+Future Migration Path | DigitalOcean

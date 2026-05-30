@@ -1,0 +1,41 @@
+DEEVUH — Deployment Infrastructure & Multi-Region Environment Mapping (MVP V1)
+1. Purpose
+This document defines the deployment infrastructure, hosting strategy, environment separation, region mapping, operational deployment workflows, and scalability planning for the DEEVUH fashion e-commerce platform.
+2. Infrastructure Philosophy
+DEEVUH follows a lean infrastructure strategy focused on low operational cost, simplicity, reliability, and future scalability without premature enterprise complexity.
+3. Environment Structure
+The platform uses isolated local, sandbox, staging-lite, and production environments with separate secrets, databases, and third-party credentials.
+4. Hosting Infrastructure
+The frontend is deployed on Vercel, backend services initially use Render or Railway free-tier infrastructure, and PostgreSQL databases are hosted on Supabase or Neon.
+5. DigitalOcean Migration Strategy
+DigitalOcean becomes the future scaling target only after validated traffic and revenue growth justify infrastructure spending.
+6. Multi-Region Deployment Philosophy
+The MVP uses a primary deployment region while maintaining future-readiness for multi-region expansion without implementing unnecessary distributed infrastructure.
+7. Primary Region Mapping
+Primary infrastructure should be deployed in regions closest to the majority Indian customer base to minimize checkout latency and payment delays.
+8. CDN & Asset Distribution
+Cloudinary and Vercel CDN systems handle image optimization, caching, and global static asset delivery.
+9. Database Deployment Strategy
+The PostgreSQL database uses transactional consistency, automated backups, environment isolation, and future scalability planning.
+10. Backend Deployment Strategy
+The Node.js + Express monolith uses lightweight containerized deployment pipelines with centralized API architecture.
+11. Frontend Deployment Strategy
+The React frontend prioritizes SEO-friendly routing, optimized image delivery, mobile responsiveness, and fast static delivery.
+12. Environment Variable Management
+Each environment requires isolated secrets for JWT authentication, PayU, Resend, Cloudinary, and database connectivity.
+13. CI/CD Deployment Workflow
+The deployment workflow includes automated builds, environment validation, rollback readiness, and protected production deployment.
+14. Deployment Guardrails
+Production deployment requires payment validation testing, webhook verification, environment checks, monitoring setup, and rollback planning.
+15. Multi-Region Expansion Readiness
+The architecture preserves future support for CDN scaling, Redis caching, DigitalOcean migration, and regional service distribution.
+16. Monitoring & Operational Reliability
+The infrastructure uses lightweight logging, uptime monitoring, webhook monitoring, and failure visibility without enterprise observability overhead.
+17. Security Infrastructure Requirements
+All environments enforce HTTPS, secure JWT handling, protected admin APIs, secret isolation, and rate limiting.
+18. Disaster Recovery & Backup Strategy
+The infrastructure includes automated backups, restore validation, deployment rollback procedures, and database recovery planning.
+19. Cost-Control Infrastructure Rules
+The platform avoids unnecessary paid infrastructure, multi-cloud redundancy, enterprise Kubernetes systems, and excessive operational tooling during MVP phase.
+20. Final Technical Direction
+The deployment architecture prioritizes reliability, low monthly cost, operational simplicity, and scalable future migration without overengineering.

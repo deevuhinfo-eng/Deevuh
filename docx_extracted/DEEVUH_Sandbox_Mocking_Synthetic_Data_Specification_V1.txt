@@ -1,0 +1,33 @@
+DEEVUH — Sandbox Mocking & Synthetic Data Specification (MVP V1)
+1. Purpose
+This document defines the sandbox environments, mocked services, synthetic datasets, development test flows, and non-production operational behaviors for the DEEVUH fashion e-commerce platform.
+2. Sandbox Philosophy
+The sandbox environment must simulate production behavior without real payments, real customer impact, or production operational consequences.
+3. Environment Structure
+DEEVUH uses three environments: local, sandbox, and production. Each environment must use isolated credentials, databases, and third-party service configurations.
+4. Payment Sandbox Specification
+The PayU sandbox must simulate successful payments, failed payments, duplicate callbacks, cancellations, and timeouts without triggering real financial transactions.
+5. Email Sandbox Specification
+Sandbox email systems validate templates, notifications, and operational email flows while preventing emails from reaching real customers.
+6. Database Sandbox Specification
+Sandbox databases must contain only synthetic data including mock users, fake orders, coupons, and simulated analytics.
+7. Mock Product Media Specification
+Product media used in sandbox environments must use free placeholder assets, optimized image formats, and isolated Cloudinary configurations.
+8. API Mocking Specification
+Mock APIs are required for PayU, Resend, analytics, and selected Cloudinary behaviors to reduce development cost and dependency.
+9. State Machine Testing Specification
+The sandbox must validate payment flows, coupon handling, inventory protection, abandoned cart logic, and lifecycle transition enforcement.
+10. Admin Dashboard Sandbox Rules
+Sandbox admin accounts must support operational testing without affecting production systems, analytics, or customer communication.
+11. Frontend Sandbox Specification
+The frontend sandbox must simulate checkout failures, empty carts, invalid coupons, loading delays, and mobile responsiveness.
+12. Logging & Monitoring Sandbox Rules
+Sandbox environments should use lightweight logging and free-tier monitoring while avoiding enterprise observability costs.
+13. Synthetic Load Testing Rules
+Minimal load testing should simulate 20–50 concurrent users without requiring expensive infrastructure or enterprise tooling.
+14. Security Guardrails for Sandbox
+Sandbox environments must still enforce authentication, validation, authorization, webhook verification, and rate limiting.
+15. Free-Tier Infrastructure Strategy
+The platform should prioritize Vercel Free, Supabase Free, Cloudinary Free, Resend Free, and PayU Sandbox before migrating to paid DigitalOcean infrastructure.
+16. Final Technical Direction
+The sandbox system prioritizes reliable checkout validation, operational simplicity, low infrastructure cost, and rapid MVP iteration.

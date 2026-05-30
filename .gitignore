@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp / scratch
+*.sql
+*.py
+docx/
+docx_extracted/
+products/
+cloudinary-url-map.json
+upload-to-cloudinary.js
+generate_token.js
+extract_docx.py
+cleanup-duplicates.sql

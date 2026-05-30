@@ -1,0 +1,124 @@
+DEEVUH — Entity Relationship Diagram & Schema Specification V3
+This document defines the MVP database schema, entity relationships, and core data structures for the Deevuh fashion e-commerce platform.
+1. Entity Relationship Diagram (ERD)
+
+2. Core Database Philosophy
+Lean relational schema optimized for MVP launch
+Supports future scaling without unnecessary complexity
+Normalized structure for maintainability
+Transactional consistency for orders and payments
+Simple operational workflows for admin management
+3. Schema Specification
+users
+products
+product_variants
+product_images
+carts
+cart_items
+orders
+order_items
+coupons
+admin_users
+4. Relationship Definitions
+One user can have multiple carts
+One cart can contain multiple cart items
+One product can have multiple variants
+One product can have multiple images
+One order can contain multiple order items
+One user can place multiple orders
+Cart items and order items reference product variants
+Coupons can be applied during checkout
+5. MVP Optimization Decisions
+No microservice-specific schema separation
+No event-store architecture
+No advanced analytics tables initially
+No Redis-dependent schema logic
+Minimal joins for admin dashboard efficiency
+6. Future Expansion Readiness
+Wishlist tables
+Reviews and ratings
+Inventory logs
+Marketing automation
+Loyalty systems
+Advanced analytics events
+Multi-address support
+Shipment tracking
+7. Final Technical Direction
+The data layer is intentionally designed to remain simple, maintainable, and operationally efficient for the early-stage launch of the Deevuh platform. The schema supports the current business requirements while preserving a clean upgrade path for future scaling.
+
+--- TABLE 1 ---
+Field | Type / Description
+id | UUID / PK
+name | VARCHAR
+email | VARCHAR UNIQUE
+phone | VARCHAR
+created_at | TIMESTAMP
+
+--- TABLE 2 ---
+Field | Type / Description
+id | UUID / PK
+title | VARCHAR
+description | TEXT
+base_price | DECIMAL
+category | VARCHAR
+is_active | BOOLEAN
+created_at | TIMESTAMP
+
+--- TABLE 3 ---
+Field | Type / Description
+id | UUID / PK
+product_id | FK → products.id
+size | VARCHAR
+price | DECIMAL
+stock_qty | INTEGER
+
+--- TABLE 4 ---
+Field | Type / Description
+id | UUID / PK
+product_id | FK → products.id
+image_url | TEXT
+
+--- TABLE 5 ---
+Field | Type / Description
+id | UUID / PK
+user_id | FK → users.id
+status | ENUM(active, abandoned, converted)
+last_activity_at | TIMESTAMP
+
+--- TABLE 6 ---
+Field | Type / Description
+id | UUID / PK
+cart_id | FK → carts.id
+product_variant_id | FK → product_variants.id
+quantity | INTEGER
+
+--- TABLE 7 ---
+Field | Type / Description
+id | UUID / PK
+user_id | FK → users.id
+total_amount | DECIMAL
+payment_status | ENUM
+order_status | ENUM
+created_at | TIMESTAMP
+
+--- TABLE 8 ---
+Field | Type / Description
+id | UUID / PK
+order_id | FK → orders.id
+product_variant_id | FK → product_variants.id
+quantity | INTEGER
+
+--- TABLE 9 ---
+Field | Type / Description
+id | UUID / PK
+code | VARCHAR UNIQUE
+discount_type | ENUM
+discount_value | DECIMAL
+expires_at | TIMESTAMP
+
+--- TABLE 10 ---
+Field | Type / Description
+id | UUID / PK
+email | VARCHAR UNIQUE
+password_hash | TEXT
+role | VARCHAR

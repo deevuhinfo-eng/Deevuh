@@ -1,0 +1,306 @@
+/* Google Fonts — must be first */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+/* ============================================
+   DEEVUH V3 Design System — Stitch MCP Tokens
+   "Where divine meets contemporary"
+   ============================================ */
+
+/* ── Design Tokens from Stitch MCP ── */
+@theme {
+  --color-ruby: #98111E;
+  --color-ruby-dark: #6B0C15;
+  --color-ruby-light: #C41626;
+  --color-cream: #FDF0D5;
+  --color-off-white: #FAFAFA;
+  --color-charcoal: #2C2C2C;
+  --color-surface: #fcf9f8;
+  --color-surface-dim: #dcd9d9;
+  --color-surface-container: #f0eded;
+  --color-surface-container-high: #eae7e7;
+  --color-surface-container-highest: #e4e2e1;
+  --color-surface-container-low: #f6f3f2;
+  --color-primary: #710010;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #98111e;
+  --color-on-primary-container: #ffa4a0;
+  --color-secondary: #665e49;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ebdfc4;
+  --color-on-secondary-container: #6b624d;
+  --color-tertiary: #333536;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #4a4c4c;
+  --color-success: #2E7D32;
+  --color-warning: #F9A825;
+  --color-error: #D32F2F;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-outline: #8d706e;
+  --color-outline-variant: #e1bebc;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #59413f;
+  --color-inverse-surface: #303030;
+  --color-inverse-on-surface: #f3f0f0;
+  --font-serif: 'Noto Serif', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Base Styles ── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-on-surface);
+  background-color: var(--color-surface);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ── Typography ── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  color: var(--color-charcoal);
+  line-height: 1.3;
+}
+
+h1 { font-size: 48px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+h2 { font-size: 36px; font-weight: 600; line-height: 1.3; }
+h3 { font-size: 24px; font-weight: 500; line-height: 1.4; }
+h4 { font-size: 20px; font-weight: 500; line-height: 1.4; }
+
+.label-lg { font-size: 14px; font-weight: 600; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase; }
+.label-md { font-size: 12px; font-weight: 500; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase; }
+
+/* ── Deevuh Shape Language ── */
+/* Sharp 90-degree angles — 0px radius for cards/containers */
+/* 2px radius for buttons only */
+/* No drop shadows — use tonal layering */
+
+.card {
+  background: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0;
+  padding: 24px;
+  transition: background-color 0.2s ease;
+}
+
+.card:hover {
+  background: var(--color-surface-container);
+}
+
+.card-elevated {
+  background: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0;
+  padding: 24px;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--color-ruby);
+  color: var(--color-on-primary);
+}
+.btn-primary:hover {
+  background: var(--color-ruby-dark);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-ruby);
+  border: 1px solid var(--color-ruby);
+}
+.btn-secondary:hover {
+  background: var(--color-ruby);
+  color: var(--color-on-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-on-surface);
+  border: 1px solid var(--color-outline-variant);
+}
+.btn-ghost:hover {
+  background: var(--color-surface-container-high);
+}
+
+.btn-sm { padding: 8px 16px; font-size: 12px; }
+.btn-lg { padding: 16px 32px; font-size: 16px; }
+
+/* ── Form Elements ── */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-ruby);
+}
+
+.input::placeholder {
+  color: var(--color-on-surface-variant);
+}
+
+/* ── Layout Utilities ── */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section-gap { padding-block: 80px; }
+.stack-sm { display: flex; flex-direction: column; gap: 8px; }
+.stack-md { display: flex; flex-direction: column; gap: 16px; }
+.stack-lg { display: flex; flex-direction: column; gap: 32px; }
+
+/* ── Admin Sidebar ── */
+.admin-sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: var(--color-charcoal);
+  color: var(--color-cream);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+}
+
+.admin-content {
+  margin-left: 240px;
+  min-height: 100vh;
+  background: var(--color-surface);
+}
+
+/* ── Stat Cards ── */
+.stat-card {
+  background: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-value {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+/* ── Table ── */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+  background: var(--color-surface-container);
+  border-bottom: 1px solid var(--color-outline-variant);
+}
+
+.table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--color-surface-container-high);
+}
+
+.table tr:hover td {
+  background: var(--color-surface-container-low);
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+
+.badge-success { background: #e8f5e9; color: var(--color-success); }
+.badge-warning { background: #fff8e1; color: #f57f17; }
+.badge-error { background: var(--color-error-container); color: var(--color-error); }
+.badge-primary { background: #fce4ec; color: var(--color-ruby); }
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes pulse-ruby {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(152, 17, 30, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(152, 17, 30, 0); }
+}
+
+.pulse-ruby {
+  animation: pulse-ruby 2s infinite;
+}

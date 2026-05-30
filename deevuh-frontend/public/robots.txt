@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block admin routes from search engines
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+
+Sitemap: https://deevuh.com/sitemap.xml

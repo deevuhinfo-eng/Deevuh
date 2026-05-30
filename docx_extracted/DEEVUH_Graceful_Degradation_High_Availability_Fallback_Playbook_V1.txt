@@ -1,0 +1,41 @@
+DEEVUH — Graceful Degradation & High-Availability Fallback Playbook (MVP V1)
+1. Purpose
+This document defines the graceful degradation strategies, fallback systems, operational resilience rules, and high-availability response procedures for the DEEVUH fashion e-commerce platform.
+2. Operational Philosophy
+DEEVUH prioritizes reliable checkout operations, operational simplicity, and controlled failure handling instead of expensive enterprise-grade infrastructure.
+3. Graceful Degradation Principles
+The platform must continue core business operations even when selected services, APIs, or third-party integrations partially fail.
+4. Critical Service Priority Mapping
+Payment verification, order creation, admin access, and inventory consistency are considered critical operational systems requiring maximum protection.
+5. Frontend Graceful Degradation
+The frontend must handle slow APIs, unavailable images, failed requests, and temporary backend degradation without crashing the customer experience.
+6. Backend Degradation Strategy
+The backend should isolate non-critical failures, preserve payment consistency, and continue serving essential APIs during partial outages.
+7. Database Failure Handling
+Database fallback procedures include retry logic, transactional protection, backup restoration readiness, and degraded read-only operational modes.
+8. Payment Gateway Fallback Rules
+If PayU becomes unavailable, checkout must safely pause while preserving cart data and preventing inconsistent payment/order states.
+9. Email Service Degradation
+If Resend fails temporarily, email jobs must queue safely without blocking order confirmation or payment verification workflows.
+10. Cloudinary Failure Handling
+If image delivery fails, the frontend must use placeholder product images and continue storefront operation.
+11. Admin Dashboard Fallback Strategy
+The admin dashboard must prioritize order visibility, payment tracking, and inventory access during degraded system conditions.
+12. High-Availability Operational Rules
+The infrastructure should maximize uptime through lightweight redundancy, health monitoring, and controlled recovery workflows.
+13. Deployment Failure Recovery
+Deployment failures require rollback capability, environment validation, and restoration of the last stable release.
+14. API Failure Recovery
+Critical APIs must implement retry-safe operations, idempotency protections, timeout handling, and controlled fallback responses.
+15. State Machine Recovery Rules
+Lifecycle states must remain transactionally consistent during failures, retries, duplicate callbacks, or interrupted checkout sessions.
+16. Monitoring & Incident Detection
+The system must monitor payment failures, webhook failures, API downtime, checkout abandonment spikes, and deployment issues.
+17. Logging & Operational Visibility
+Operational logs should capture failures, retries, webhook events, order transitions, and infrastructure incidents without exposing secrets.
+18. Cost-Control Availability Strategy
+The platform intentionally avoids expensive enterprise HA infrastructure such as multi-cloud replication, Kubernetes clusters, or distributed microservices during MVP phase.
+19. Disaster Recovery Procedures
+Disaster recovery includes automated backups, environment restoration, rollback procedures, database recovery, and webhook replay support.
+20. Final Technical Direction
+DEEVUH’s availability strategy focuses on operational resilience, payment reliability, graceful failure handling, and low-cost infrastructure without overengineering.

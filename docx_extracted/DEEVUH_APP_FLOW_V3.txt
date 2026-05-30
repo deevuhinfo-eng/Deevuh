@@ -1,0 +1,346 @@
+DEEVUH — Application Flow Document V3
+Customer, Admin, Checkout, and Operational User Flows
+1. Application Overview
+The Deevuh platform is designed as a streamlined fashion e-commerce experience focused on simplicity, premium visual presentation, and operational efficiency.
+
+The application consists of:
+• Customer-facing storefront
+• Admin dashboard
+• Checkout and payment system
+• Order management flow
+• Customer and abandoned cart tracking
+
+2. High-Level Application Flow
+Customer Journey Flow:
+
+Landing Page
+    ↓
+Browse Products
+    ↓
+Open Product Details
+    ↓
+Select Size & Quantity
+    ↓
+Add to Cart
+    ↓
+View Cart
+    ↓
+Apply Coupon (Optional)
+    ↓
+Checkout
+    ↓
+Enter Shipping Details
+    ↓
+Pay via PayU
+    ↓
+Order Confirmation
+    ↓
+Confirmation Email via Resend
+
+3. Homepage Flow
+Homepage Components:
+• Hero banner
+• Featured collection
+• Product showcase
+• Promotional banners
+• Brand introduction
+• Footer navigation
+
+User Actions:
+• Browse products
+• Navigate to categories
+• Open product pages
+• Access cart
+
+4. Product Discovery Flow
+Product Listing Page:
+• Product image
+• Product title
+• Product price
+• Quick navigation
+
+Flow:
+Homepage
+    ↓
+Collection/Product Listing
+    ↓
+Select Product
+    ↓
+Product Detail Page
+
+5. Product Detail Flow
+Product Detail Page Includes:
+• Multiple product images
+• Product description
+• Available sizes
+• Product pricing
+• Add to cart button
+• Availability status
+
+Customer Interaction Flow:
+Open Product
+    ↓
+Select Size
+    ↓
+Choose Quantity
+    ↓
+Add to Cart
+    ↓
+Continue Shopping OR Go to Cart
+
+6. Cart Flow
+Cart Features:
+• View products
+• Update quantity
+• Remove items
+• Apply coupon codes
+• View subtotal
+• Proceed to checkout
+
+Cart Logic:
+• Cart persists during session
+• Cart data stored in database
+• Inactive carts tracked for abandoned cart monitoring
+
+7. Abandoned Cart Flow
+Abandoned Cart Definition:
+A cart becomes abandoned when:
+• Products exist in cart
+• Checkout is not completed
+• User becomes inactive for defined time threshold
+
+System Flow:
+User Adds Product to Cart
+    ↓
+No Checkout Completion
+    ↓
+System Tracks Last Activity
+    ↓
+Cart Marked as Abandoned
+    ↓
+Visible in Admin Dashboard
+
+Future Expansion:
+• Automated reminder emails
+
+8. Checkout Flow
+Checkout Steps:
+1. Open Checkout
+2. Enter shipping information
+3. Review order summary
+4. Apply coupons/promos (optional)
+5. Redirect to PayU
+6. Complete payment
+7. Payment verification
+8. Order creation
+9. Confirmation screen
+
+Failure Handling:
+• Failed payment retry
+• Order not created unless payment verified
+
+9. Payment Flow (PayU)
+Payment Flow:
+
+Customer Initiates Checkout
+    ↓
+Backend Creates Payment Request
+    ↓
+Redirect to PayU
+    ↓
+Customer Completes Payment
+    ↓
+PayU Returns Status
+    ↓
+Webhook Verification
+    ↓
+Order Confirmed
+    ↓
+Confirmation Email Sent
+
+Security:
+• Secure webhook validation
+• HTTPS-only communication
+
+10. Order Flow
+Order Lifecycle:
+
+Order Created
+    ↓
+Payment Verified
+    ↓
+Pending Fulfillment
+    ↓
+Processing
+    ↓
+Shipped
+    ↓
+Delivered
+
+Admin Actions:
+• View order details
+• Update order status
+• Track customer information
+
+11. Customer Email Flow
+Transactional Emails via Resend:
+
+Events:
+• Order confirmation
+• Payment confirmation
+• Shipping updates (future-ready)
+
+Flow:
+Successful Order
+    ↓
+Backend Triggers Email Service
+    ↓
+Resend Sends Email
+    ↓
+Customer Receives Confirmation
+
+12. Admin Dashboard Flow
+Admin Authentication:
+Admin Login
+    ↓
+JWT Verification
+    ↓
+Dashboard Access
+
+Admin Dashboard Sections:
+• Overview dashboard
+• Product management
+• Orders
+• Customers
+• Abandoned carts
+• Coupons/promos
+• Revenue analytics
+
+13. Product Management Flow
+Admin Product Workflow:
+
+Admin Login
+    ↓
+Open Product Management
+    ↓
+Add/Edit Product
+    ↓
+Upload Product Images
+    ↓
+Set Sizes & Pricing
+    ↓
+Save Product
+    ↓
+Product Visible on Frontend
+
+14. Order Management Flow
+Admin Order Workflow:
+
+New Order Received
+    ↓
+Visible in Admin Dashboard
+    ↓
+Admin Opens Order
+    ↓
+Verify Payment Status
+    ↓
+Update Order Status
+    ↓
+Customer Notified (future-ready)
+
+15. Coupon & Promo Flow
+Admin Promo Workflow:
+
+Admin Creates Coupon
+    ↓
+Sets:
+• Discount Type
+• Discount Value
+• Expiry Date
+• Usage Limit
+    ↓
+Coupon Activated
+    ↓
+Customer Applies Coupon During Checkout
+    ↓
+Backend Validates Coupon
+    ↓
+Discount Applied
+
+16. Revenue Tracking Flow
+Revenue Dashboard Includes:
+• Total sales
+• Daily sales
+• Monthly sales
+• Order count
+• Average order value
+
+Data Source:
+• Successful paid orders only
+
+17. Technical System Flow
+Frontend → Backend → Database Architecture
+
+Frontend:
+• React-based storefront/admin
+
+Backend:
+• Node.js + Express APIs
+
+Database:
+• PostgreSQL
+
+External Services:
+• PayU
+• Resend
+• Cloudinary
+
+Hosting:
+• Vercel (frontend)
+• Render/Railway (backend)
+• Neon/Supabase (database)
+
+18. Mobile User Experience Flow
+Mobile UX Priorities:
+• Fast loading
+• Minimal checkout friction
+• Responsive layouts
+• Optimized product images
+• Easy navigation
+
+Mobile Flow:
+Instagram/Social Traffic
+    ↓
+Landing Page
+    ↓
+Product Exploration
+    ↓
+Quick Checkout
+    ↓
+Payment Completion
+
+19. Future Expansion Flow Readiness
+The application flow is designed to support future additions:
+• User accounts
+• Wishlist system
+• Loyalty programs
+• Automated abandoned cart recovery
+• Inventory management
+• Marketing automation
+• Expanded analytics
+
+20. Final Product Experience Vision
+The Deevuh application should feel:
+• Premium
+• Fast
+• Minimal
+• Editorial
+• Mobile-first
+• Easy to manage
+
+The application flow prioritizes:
+• Conversion-focused UX
+• Operational simplicity
+• Reliable checkout
+• Scalable architecture without unnecessary complexity
+

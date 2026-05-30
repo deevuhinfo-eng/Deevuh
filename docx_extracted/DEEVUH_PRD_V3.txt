@@ -1,0 +1,233 @@
+DEEVUH — Product Requirements Document (PRD) V3
+Lean MVP E-Commerce Platform for a Fashion Brand
+1. Executive Summary
+Deevuh is an emerging fashion brand launching its first digital storefront with an initial catalog of four products. 
+The objective of this project is to build a premium-looking, conversion-focused e-commerce website with a lightweight but scalable backend architecture.
+
+The platform must allow customers to:
+• Browse products
+• Add items to cart
+• Complete purchases securely
+• Receive transactional emails
+• Interact with a responsive modern storefront
+
+The platform must also provide the client with a simple and easy-to-use admin dashboard for:
+• Product management
+• Order tracking
+• Customer monitoring
+• Revenue visibility
+• Coupon and promo management
+• Abandoned cart tracking
+
+The system should prioritize:
+• Fast launch
+• Reliability
+• Low operational cost
+• Ease of maintenance
+• Future scalability without rebuilding the entire platform
+
+2. Business Goals
+Primary business goals:
+• Launch Deevuh online professionally
+• Enable direct online sales
+• Build customer trust through premium UX
+• Allow non-technical founders to manage operations independently
+• Keep infrastructure costs minimal during the early growth phase
+
+Secondary goals:
+• Prepare backend architecture for future product expansion
+• Capture customer and order analytics
+• Support future scaling when traffic and sales increase
+
+3. Project Scope
+Included in MVP:
+• Customer-facing fashion e-commerce website
+• Admin dashboard
+• Product catalog management
+• Shopping cart and checkout
+• PayU payment integration
+• Resend email integration
+• Order management system
+• Coupon and promo code system
+• Abandoned cart tracking
+• Revenue tracking dashboard
+• Mobile responsive design
+• Secure authentication for admin panel
+
+Out of Scope (for MVP):
+• Mobile apps
+• Marketplace/multi-vendor functionality
+• AI recommendations
+• Loyalty system
+• Advanced analytics engine
+• Multi-language support
+• Multi-currency support
+• Enterprise-level infrastructure
+
+4. Target Audience
+Primary audience:
+• Women aged 20–35
+• Fashion-conscious online shoppers
+• Mobile-first users
+• Instagram/social-media-driven buyers
+
+Expected user behavior:
+• Majority traffic from mobile devices
+• High importance on visual presentation
+• Short attention span during browsing
+• Checkout simplicity directly affects conversion
+
+5. Functional Requirements — Customer Website
+5.1 Homepage
+• Hero banner
+• Featured products
+• Promotional sections
+• New arrivals section
+• Brand storytelling sections
+
+5.2 Product Pages
+• Product images
+• Product descriptions
+• Price
+• Available sizes
+• Add-to-cart functionality
+• Product availability status
+
+5.3 Cart & Checkout
+• Add/remove products
+• Quantity updates
+• Coupon application
+• Checkout flow
+• Shipping details form
+• Payment gateway integration via PayU
+
+5.4 User Features
+• Guest checkout
+• Optional account creation
+• Order confirmation emails
+• Order history (future-ready)
+
+5.5 Responsive Design
+• Fully optimized for mobile devices
+• Smooth performance on slower devices
+• Fast-loading image experience
+
+6. Functional Requirements — Admin Panel
+6.1 Product Management
+Admin should be able to:
+• Add products
+• Edit products
+• Delete products
+• Upload product images
+• Manage sizes
+• Manage pricing
+• Manage inventory status
+• Add/edit descriptions
+
+6.2 Order Management
+Admin should be able to:
+• View all orders
+• View order details
+• Track payment status
+• Update order status
+• View customer information
+
+6.3 Customer Insights
+Admin should be able to:
+• View customers who placed orders
+• Track repeat customers
+• Monitor abandoned carts
+
+6.4 Revenue Tracking
+Admin dashboard should display:
+• Total revenue
+• Daily/weekly/monthly sales
+• Total orders
+• Basic sales trends
+
+6.5 Promotions
+Admin should be able to:
+• Create promo codes
+• Create coupons
+• Set expiration dates
+• Set usage limits
+
+7. Technical Architecture
+Frontend:
+• React-based modern frontend
+• Responsive UI
+• Optimized image loading
+
+Backend:
+• Node.js + Express.js monolithic backend
+• REST API architecture
+
+Database:
+• PostgreSQL
+
+Hosting:
+• Frontend hosted on Vercel
+• Backend hosted on Render or Railway initially
+• Future migration path to DigitalOcean
+
+Storage:
+• Cloudinary for image hosting
+
+Third-Party Services:
+• PayU for payments
+• Resend for transactional emails
+
+Architecture Philosophy:
+• Keep infrastructure simple
+• Avoid unnecessary complexity
+• Focus on reliability over premature scaling
+
+8. Security Requirements
+• Secure admin authentication
+• Password hashing
+• Protected admin routes
+• HTTPS deployment
+• Secure payment flow handling
+• Environment variable protection
+• Basic rate limiting
+
+9. Performance Requirements
+• Mobile-first optimization
+• Fast initial page load
+• Optimized images
+• Smooth checkout experience
+• Minimal downtime
+
+10. Future Scalability Considerations
+The MVP architecture should support future scaling without requiring a full rewrite.
+
+Future scalability areas:
+• Increased product catalog
+• Higher order volume
+• Expanded analytics
+• Dedicated cloud infrastructure
+• Advanced search system
+• Customer accounts and loyalty features
+• Marketing automation
+
+11. Success Metrics
+Key success indicators:
+• Successful product purchases
+• Stable payment flow
+• Low checkout abandonment
+• Fast page load times
+• Admin usability for non-technical founders
+• Stable hosting performance
+
+12. Final Product Vision
+The Deevuh platform should feel:
+• Premium
+• Editorial
+• Modern
+• Clean
+• Mobile-first
+• Easy to manage
+
+The primary objective is not to build a large-scale enterprise system initially.
+The objective is to launch a reliable and visually strong fashion e-commerce platform that supports early business growth while keeping operational complexity low.
+

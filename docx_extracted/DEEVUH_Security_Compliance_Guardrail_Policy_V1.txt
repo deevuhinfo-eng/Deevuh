@@ -1,0 +1,29 @@
+DEEVUH — Security, Compliance & Guardrail Policy (MVP V1)
+1. Purpose
+This policy defines the mandatory security controls, operational safeguards, compliance standards, and engineering guardrails for the DEEVUH e-commerce platform.
+2. Security Philosophy
+DEEVUH follows a lean but strict security-first operational philosophy prioritizing payment integrity, operational reliability, and backend-controlled validation.
+3. Authentication & Authorization
+Admin authentication uses JWT tokens, password hashing, role-based access control, secure session handling, and protected admin APIs.
+4. API Security
+All APIs must enforce validation middleware, authentication, authorization, rate limiting, secure CORS policies, and standardized error handling.
+5. Payment Security
+Orders may only be created after verified PayU payment confirmation. Webhooks must be validated, idempotent, and replay-safe.
+6. Database Security
+PostgreSQL access must follow least privilege principles with transactional integrity for checkout, inventory, and order flows.
+7. Frontend Security
+The React frontend must avoid client-side trust assumptions, prevent XSS risks, and securely manage dependencies.
+8. File Upload & Cloudinary Security
+Uploads must validate MIME type, extension, file size, and restrict executable or dangerous files.
+9. Compliance & Privacy
+DEEVUH follows minimal-data retention practices, HTTPS-only communication, and PCI-conscious payment architecture.
+10. Operational Guardrails
+Environment variables, deployment pipelines, monitoring, backups, and rollback strategies are mandatory operational controls.
+11. State Machine Guardrails
+Invalid lifecycle transitions such as DELIVERED → PROCESSING or FAILED_PAYMENT → ORDER_CREATED must be blocked at backend level.
+12. Engineering Guardrails
+The platform intentionally avoids premature complexity such as microservices, Kubernetes, or distributed systems.
+13. Incident Response
+Payment inconsistencies, checkout outages, and operational failures must follow defined escalation and recovery procedures.
+14. Final Security Direction
+The platform prioritizes simplicity, reliability, operational discipline, and payment consistency over unnecessary infrastructure complexity.

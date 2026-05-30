@@ -1,0 +1,342 @@
+DEEVUH — Technical Requirements Document (TRD) V3
+Lean MVP Technical Architecture for Fashion E-Commerce Platform
+1. Technical Overview
+This document defines the technical architecture, infrastructure decisions, backend systems, frontend structure, deployment strategy, and operational requirements for the Deevuh fashion e-commerce platform.
+
+The system is intentionally designed as a lean monolithic architecture optimized for:
+• Fast launch
+• Low operational cost
+• High maintainability
+• Reliable checkout experience
+• Future scalability without premature engineering complexity
+
+The platform is intended to support the early-stage growth of the brand while remaining easy to manage and cost-efficient.
+
+2. System Architecture
+Architecture Type:
+• Monolithic web application architecture
+
+Reasoning:
+• Simplifies deployment
+• Reduces infrastructure complexity
+• Easier debugging and maintenance
+• Faster development lifecycle
+• Lower hosting cost
+• Appropriate for current business scale
+
+High-Level Architecture:
+Frontend → Backend API → PostgreSQL Database
+
+Integrated External Services:
+• PayU (payments)
+• Resend (emails)
+• Cloudinary (image hosting)
+
+3. Frontend Architecture
+Framework:
+• React.js-based frontend
+
+Primary Goals:
+• Premium fashion-brand visual experience
+• Mobile-first responsiveness
+• Fast loading speeds
+• Clean navigation
+• Smooth checkout experience
+
+Core Frontend Modules:
+• Homepage
+• Product listing pages
+• Product detail pages
+• Shopping cart
+• Checkout
+• Authentication pages
+• Account pages (future-ready)
+• Admin dashboard
+
+Frontend Features:
+• Responsive layouts
+• Lazy image loading
+• Optimized image rendering
+• SEO-friendly routing
+• Client-side form validation
+
+4. Backend Architecture
+Runtime Environment:
+• Node.js
+
+Framework:
+• Express.js
+
+Architecture Style:
+• REST API-based monolith
+
+Core Backend Modules:
+• Authentication module
+• Product module
+• Cart module
+• Checkout module
+• Order module
+• Coupon module
+• Admin module
+• Email module
+• Payment integration module
+
+API Design Principles:
+• Clear route separation
+• Stateless APIs
+• Centralized error handling
+• Validation middleware
+• Secure authentication middleware
+
+5. Database Design
+Database:
+• PostgreSQL
+
+Reasoning:
+• Reliable relational structure
+• Strong transactional consistency
+• Excellent support for e-commerce workflows
+• Scalable for future growth
+
+Core Database Tables:
+• users
+• products
+• product_variants
+• carts
+• cart_items
+• orders
+• order_items
+• coupons
+• promo_codes
+• admin_users
+• abandoned_carts
+
+Future Expansion Tables:
+• reviews
+• wishlists
+• inventory_logs
+• analytics_events
+
+6. Authentication & Authorization
+Authentication System:
+• JWT-based authentication
+
+Admin Authentication:
+• Protected admin login
+• Role-based access control
+
+Security Measures:
+• Password hashing
+• Token expiration
+• Protected API routes
+• Environment variable protection
+• Input validation
+
+7. Admin Dashboard Requirements
+Admin dashboard must support:
+
+Product Management:
+• Add products
+• Edit products
+• Delete products
+• Upload images
+• Manage pricing
+• Manage sizes
+• Manage inventory
+
+Order Management:
+• View orders
+• Update order status
+• View payment status
+• View customer details
+
+Customer Tracking:
+• View customer orders
+• Track abandoned carts
+• Monitor repeat customers
+
+Promotions:
+• Create coupons
+• Create promo codes
+• Set expiry dates
+• Set usage limits
+
+Analytics:
+• Revenue overview
+• Sales summaries
+• Order counts
+• Basic performance metrics
+
+8. Cart & Abandoned Cart Logic
+Cart System:
+• Guest cart support
+• Persistent cart storage
+• Quantity updates
+• Coupon application
+
+Abandoned Cart Logic:
+A cart is considered abandoned when:
+• Cart contains products
+• Checkout is not completed
+• User becomes inactive for defined time period
+
+Admin Visibility:
+• Customer information (if available)
+• Cart contents
+• Last activity timestamp
+
+9. Payment Integration
+Payment Gateway:
+• PayU
+
+Requirements:
+• Secure checkout flow
+• Payment status verification
+• Webhook handling
+• Failed payment handling
+• Order confirmation flow
+
+Security:
+• Secure webhook validation
+• No sensitive card storage
+• HTTPS-only payment flow
+
+10. Email Infrastructure
+Email Service:
+• Resend
+
+Transactional Emails:
+• Order confirmation
+• Payment confirmation
+• Admin notifications
+• Abandoned cart reminders (future-ready)
+
+Email Goals:
+• Reliable delivery
+• Clean branded templates
+• Mobile responsiveness
+
+11. Image & Media Handling
+Image Hosting:
+• Cloudinary
+
+Requirements:
+• Product image uploads
+• Optimized delivery
+• Responsive image support
+• Compression and resizing
+
+Reasoning:
+• Simplifies infrastructure
+• Improves frontend performance
+• Reduces backend storage complexity
+
+12. Hosting & Deployment
+Frontend Hosting:
+• Vercel
+
+Backend Hosting:
+• Render or Railway initially
+• Future migration path to DigitalOcean
+
+Database Hosting:
+• Neon or Supabase PostgreSQL
+
+Deployment Goals:
+• Low-cost infrastructure
+• Minimal maintenance
+• Fast deployment pipeline
+• Easy scaling path
+
+Environment Management:
+• Separate development and production environments
+• Secure environment variable storage
+
+13. Performance Strategy
+Performance Priorities:
+• Fast mobile performance
+• Optimized images
+• Minimal API latency
+• Fast checkout experience
+
+Optimization Strategies:
+• Image optimization
+• Lazy loading
+• Pagination for admin data
+• Database indexing
+• Efficient API responses
+
+14. Scalability Strategy
+Current Architecture Focus:
+• Lean MVP delivery
+
+Future Scaling Path:
+• Move backend to DigitalOcean
+• Add Redis caching if needed
+• Add CDN layer
+• Introduce search optimization later
+
+Explicit Non-Goals for MVP:
+• Microservices
+• Kubernetes
+• Distributed systems
+• Event-driven architecture
+• Advanced caching infrastructure
+
+Reasoning:
+Premature infrastructure complexity increases:
+• Development time
+• Maintenance burden
+• Hosting cost
+• Operational risk
+without solving actual business problems at the current scale.
+
+15. Security Requirements
+Required Security Measures:
+• HTTPS enforcement
+• Password hashing
+• Secure JWT handling
+• Protected admin APIs
+• Input validation
+• Rate limiting
+• Secure environment variables
+
+Sensitive Data Rules:
+• No payment card storage
+• Minimal customer data retention
+
+16. Logging & Monitoring
+Basic Monitoring Requirements:
+• API error logging
+• Payment webhook logging
+• Server uptime monitoring
+• Failed order tracking
+
+Initial Monitoring Philosophy:
+Keep monitoring lightweight and operationally simple during MVP phase.
+
+17. Future Expansion Readiness
+The architecture should support future additions without requiring a complete rebuild.
+
+Potential Future Features:
+• Expanded product catalog
+• User accounts
+• Wishlist system
+• Loyalty programs
+• Advanced analytics
+• Marketing automation
+• Advanced search
+• Inventory management improvements
+
+18. Final Technical Direction
+The Deevuh platform should prioritize:
+• Simplicity
+• Reliability
+• Conversion-focused UX
+• Low operational overhead
+• Fast launch capability
+
+The platform is intentionally designed as a practical and maintainable e-commerce solution rather than an overengineered enterprise system.
+
+The technical objective is to create a stable operational foundation for the brand’s early growth while preserving the flexibility to scale in the future.
+
