@@ -204,28 +204,14 @@ export default function Home() {
                 lineHeight: 1.15,
                 letterSpacing: "-0.02em",
                 color: "var(--color-charcoal)",
-                marginBottom: "28px",
-              }}
-            >
-              Where
-              <br />
-              <span style={{ color: "var(--color-ruby)", fontStyle: "italic" }}>Divine Beauty</span>
-              <br />
-              Meets Modern
-              <br />
-              Sartorial Design
-            </h1>
-            <p
-              style={{
-                fontSize: "15px",
-                lineHeight: 1.8,
-                color: "var(--color-on-surface-variant)",
-                maxWidth: "420px",
                 marginBottom: "44px",
               }}
             >
-              A curated collection of four signature premium outfits designed to redefine the modern capsule wardrobe. Each piece combines heritage artisan craftsmanship with crisp, contemporary minimalism.
-            </p>
+              A{" "}
+              <span style={{ color: "var(--color-ruby)", fontStyle: "italic" }}>Deevuh</span>
+              {" "}gets what she wants.
+            </h1>
+
 
             <div style={{ display: "flex", gap: "16px" }}>
               <Link

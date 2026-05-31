@@ -5,11 +5,9 @@ import prisma from '../../config/database.js';
 const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 /**
- * Sender address.
- * During development / before domain verification: use Resend's shared domain.
- * After verifying deevuh.in with Resend: change to 'Deevuh <hello@deevuh.in>'
+ * Verified sender address — deevuh.in is confirmed in Resend.
  */
-const FROM_ADDRESS = 'Deevuh <onboarding@resend.dev>';
+const FROM_ADDRESS = 'Deevuh <confirmation@deevuh.in>';
 
 export const generateVerificationToken = async (email: string): Promise<string> => {
   const token = crypto.randomBytes(32).toString('hex');
