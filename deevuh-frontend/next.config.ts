@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.BACKEND_API_URL || 'https://deevuh.onrender.com'}/api/:path*`,
+      },
+    ];
+  },
   async headers() {
     return [
       {
