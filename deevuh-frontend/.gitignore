@@ -12,3 +12,5 @@ out/
 
 # Logs
 *.log
+
+.vercel
