@@ -20,7 +20,7 @@ function LoginForm() {
 
   // Fetch CSRF token on mount
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/csrf`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/auth/csrf`, {
       method: 'GET',
       credentials: 'include',
     }).catch(err => console.error('Failed to fetch CSRF token:', err));
