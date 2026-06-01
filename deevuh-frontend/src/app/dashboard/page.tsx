@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PRODUCTS } from "../../data/products";
+import api from "@/lib/api";
 
 export default function UserDashboard() {
-  // Mock customer info
+  const router = useRouter();
   const [customer, setCustomer] = useState({
-    name: "Devanshu",
-    email: "devanshu@website.com",
-    memberSince: "May 2026",
-    address: "B-42, Vasant Vihar, New Delhi - 110057, India",
-    phone: "+91 98765 43210",
+    name: "Loading...",
+    email: "Loading...",
+    memberSince: "Loading...",
+    address: "",
+    phone: "",
     measurements: {
       chest: "40 inches",
       waist: "32 inches",
@@ -21,11 +23,91 @@ export default function UserDashboard() {
     }
   });
 
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"orders" | "sizing" | "wishlist">("orders");
   const [isEditingSizing, setIsEditingSizing] = useState(false);
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Fetch current user details
+        const meRes = await api.get<{ status: string; data: any }>('/auth/me');
+        const user = meRes.data;
+        
+        // Fetch orders
+        const ordersRes = await api.get<{ status: string; data: any[] }>('/orders');
+        const userOrders = ordersRes.data || [];
+        
+        setOrders(userOrders);
+
+        // Get address from latest order if not provided
+        let latestAddress = "No address saved";
+        let phone = user.phone || "Not provided";
+        
+        if (userOrders.length > 0) {
+          const latestOrder = userOrders[0];
+          if (latestOrder.shippingAddress) {
+            latestAddress = latestOrder.shippingAddress;
+          }
+          if (!user.phone && latestOrder.shippingPhone) {
+            phone = latestOrder.shippingPhone;
+          }
+        }
+
+        setCustomer(prev => ({
+          ...prev,
+          name: user.name || "Valued Customer",
+          email: user.email,
+          phone: phone,
+          memberSince: user.createdAt 
+            ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
+            : "May 2026",
+          address: latestAddress
+        }));
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+        router.replace('/login?redirect=/dashboard');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+      router.push('/login');
+    } catch {
+      router.push('/login');
+    }
+  };
+
   // Custom styling attributes
   const borderStyle = "1px solid var(--color-outline-variant)";
+
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--color-surface)',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-serif)',
+          fontSize: '18px',
+          color: 'var(--color-on-surface-variant)',
+          letterSpacing: '0.05em',
+        }}>
+          Synchronizing dashboard...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-surface)", paddingTop: "90px" }}>
@@ -121,26 +203,30 @@ export default function UserDashboard() {
             My Dashboard
           </Link>
           <button
+            onClick={handleLogout}
             style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "20px",
+              fontSize: "11px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              backgroundColor: "transparent",
               color: "var(--color-charcoal)",
+              border: "1px solid var(--color-charcoal)",
+              padding: "8px 20px",
+              borderRadius: "0px",
+              cursor: "pointer",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-charcoal)";
+              e.currentTarget.style.color = "var(--color-cream)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-charcoal)";
             }}
           >
-            ♡
-          </button>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "20px",
-              color: "var(--color-charcoal)",
-            }}
-          >
-            ◇
+            Logout
           </button>
         </div>
       </nav>
@@ -182,7 +268,7 @@ export default function UserDashboard() {
                 </div>
                 <div>
                   <span style={{ fontWeight: 600, color: "var(--color-on-surface-variant)", fontSize: "12px", display: "block" }}>SHIPPING ADDRESS</span>
-                  <span style={{ color: "var(--color-charcoal)", lineHeight: 1.5 }}>{customer.address}</span>
+                  <span style={{ color: "var(--color-charcoal)", lineHeight: 1.5 }}>{customer.address || "No address saved"}</span>
                 </div>
               </div>
             </div>
@@ -234,102 +320,113 @@ export default function UserDashboard() {
                   Your Orders
                 </h2>
                 
-                <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-                  {/* Order 1: Shipped */}
-                  <div style={{ border: borderStyle, padding: "24px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: borderStyle }}>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>ORDER NO.</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>#DV-2026-9821</h4>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>PLACED ON</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>May 22, 2026</h4>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>EST. DELIVERY</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>May 26, 2026</h4>
-                      </div>
-                      <div>
-                        <span style={{
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          backgroundColor: "rgba(152, 17, 30, 0.1)",
-                          color: "var(--color-ruby)",
-                          padding: "4px 10px",
-                          letterSpacing: "0.05em"
-                        }}>
-                          SHIPPED
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr", gap: "24px", alignItems: "center" }}>
-                      <img src="/products/Baby Blue Coordset/1 Picture.jpg" alt="Baby Blue Coordset" style={{ width: "80px", aspectRatio: "3/4", objectFit: "cover", border: borderStyle }} />
-                      <div>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600 }}>Baby Blue Coordset</h4>
-                        <span style={{ fontSize: "13px", color: "var(--color-on-surface-variant)" }}>Size: M | Qty: 1</span>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ fontSize: "18px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>₹3,499</span>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div style={{ marginTop: "24px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--color-on-surface-variant)", marginBottom: "8px" }}>
-                        <span>Ordered</span>
-                        <span style={{ color: "var(--color-ruby)", fontWeight: 700 }}>Shipped (In Transit)</span>
-                        <span>Delivered</span>
-                      </div>
-                      <div style={{ height: "4px", backgroundColor: "var(--color-outline-variant)", position: "relative" }}>
-                        <div style={{ height: "100%", width: "65%", backgroundColor: "var(--color-ruby)" }} />
-                      </div>
-                    </div>
+                {orders.length === 0 ? (
+                  <div style={{ border: borderStyle, padding: "40px", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+                    <span style={{ fontSize: "15px", display: "block", marginBottom: "16px" }}>
+                      You haven't placed any orders yet.
+                    </span>
+                    <Link
+                      href="/#collection-section"
+                      style={{
+                        display: "inline-block",
+                        padding: "10px 24px",
+                        backgroundColor: "var(--color-charcoal)",
+                        color: "var(--color-cream)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        textDecoration: "none",
+                        transition: "opacity 0.2s"
+                      }}
+                    >
+                      Explore Collection
+                    </Link>
                   </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+                    {orders.map((order) => {
+                      const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      });
 
-                  {/* Order 2: Delivered */}
-                  <div style={{ border: borderStyle, padding: "24px", opacity: 0.85 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: borderStyle }}>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>ORDER NO.</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>#DV-2026-4402</h4>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>PLACED ON</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>May 02, 2026</h4>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>DELIVERED ON</span>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>May 06, 2026</h4>
-                      </div>
-                      <div>
-                        <span style={{
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          backgroundColor: "rgba(44, 44, 44, 0.1)",
-                          color: "var(--color-charcoal)",
-                          padding: "4px 10px",
-                          letterSpacing: "0.05em"
-                        }}>
-                          DELIVERED
-                        </span>
-                      </div>
-                    </div>
+                      const statusColors: Record<string, { bg: string, text: string }> = {
+                        CREATED: { bg: 'rgba(218, 165, 32, 0.1)', text: 'goldenrod' },
+                        PROCESSING: { bg: 'rgba(218, 165, 32, 0.1)', text: 'goldenrod' },
+                        SHIPPED: { bg: 'rgba(152, 17, 30, 0.1)', text: 'var(--color-ruby)' },
+                        DELIVERED: { bg: 'rgba(44, 44, 44, 0.1)', text: 'var(--color-charcoal)' },
+                        CANCELLED: { bg: 'rgba(220, 53, 69, 0.1)', text: 'red' },
+                      };
+                      
+                      const currentStatusColor = statusColors[order.orderStatus] || { bg: 'rgba(0,0,0,0.05)', text: 'var(--color-charcoal)' };
 
-                    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr", gap: "24px", alignItems: "center" }}>
-                      <img src="/products/Beige outfit/1 picture.jpg" alt="Beige Tailored Set" style={{ width: "80px", aspectRatio: "3/4", objectFit: "cover", border: borderStyle }} />
-                      <div>
-                        <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600 }}>Beige Tailored Set</h4>
-                        <span style={{ fontSize: "13px", color: "var(--color-on-surface-variant)" }}>Size: M | Qty: 1</span>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ fontSize: "18px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>₹2,999</span>
-                      </div>
-                    </div>
+                      return (
+                        <div key={order.id} style={{ border: borderStyle, padding: "24px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingBottom: "12px", borderBottom: borderStyle, flexWrap: "wrap", gap: "16px" }}>
+                            <div>
+                              <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>ORDER NO.</span>
+                              <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>#{order.id.slice(0, 8).toUpperCase()}</h4>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>PLACED ON</span>
+                              <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>{formattedDate}</h4>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: "12px", color: "var(--color-on-surface-variant)" }}>STATUS</span>
+                              <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 500 }}>{order.orderStatus}</h4>
+                            </div>
+                            <div>
+                              <span style={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                backgroundColor: currentStatusColor.bg,
+                                color: currentStatusColor.text,
+                                padding: "4px 10px",
+                                letterSpacing: "0.05em"
+                              }}>
+                                {order.orderStatus}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            {order.items?.map((item: any) => {
+                              const productTitle = item.variant?.product?.title || "Tailored Garment";
+                              const productImage = item.variant?.product?.images?.[0]?.imageUrl || "/products/Baby Blue Coordset/1 Picture.jpg";
+                              const price = Number(item.unitPrice || 0);
+
+                              return (
+                                <div key={item.id} style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr", gap: "24px", alignItems: "center" }}>
+                                  <img src={productImage} alt={productTitle} style={{ width: "80px", aspectRatio: "3/4", objectFit: "cover", border: borderStyle }} />
+                                  <div>
+                                    <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600 }}>{productTitle}</h4>
+                                    <span style={{ fontSize: "13px", color: "var(--color-on-surface-variant)" }}>
+                                      Size: {item.variant?.size || "Custom"} | Qty: {item.quantity}
+                                    </span>
+                                  </div>
+                                  <div style={{ textAlign: "right" }}>
+                                    <span style={{ fontSize: "18px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
+                                      ₹{price.toLocaleString("en-IN")}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "24px", paddingTop: "16px", borderTop: borderStyle }}>
+                            <span style={{ fontSize: "14px", color: "var(--color-on-surface-variant)" }}>Total Paid</span>
+                            <span style={{ fontSize: "20px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
+                              ₹{Number(order.finalAmount || 0).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                </div>
+                )}
               </div>
             )}
 

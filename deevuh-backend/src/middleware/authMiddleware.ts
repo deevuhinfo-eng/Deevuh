@@ -29,14 +29,24 @@ export const authMiddleware = async (
 
     const decoded = verifyAccessToken(token);
 
-    // Strict validation: check tokenVersion against the database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { tokenVersion: true }
-    });
+    // Strict validation: check tokenVersion against the database depending on role
+    let dbUserTokenVersion: number | null = null;
+    if (decoded.role === 'ADMIN') {
+      const admin = await prisma.adminUser.findUnique({
+        where: { id: decoded.id },
+        select: { tokenVersion: true }
+      });
+      if (admin) dbUserTokenVersion = admin.tokenVersion;
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: { tokenVersion: true }
+      });
+      if (user) dbUserTokenVersion = user.tokenVersion;
+    }
 
     // If user not found, or tokenVersion is old (was rotated), reject
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+    if (dbUserTokenVersion === null || dbUserTokenVersion !== decoded.tokenVersion) {
       res.status(401).json({
         status: 'error',
         message: 'Session revoked or invalid.',

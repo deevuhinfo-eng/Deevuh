@@ -32,17 +32,24 @@ function LoginForm() {
     setIsLoading(true);
     
     try {
+      let res;
       if (isRegistering) {
-        await api.post('/auth/register', { name, email, password });
+        res = await api.post('/auth/register', { name, email, password });
       } else {
-        await api.post('/auth/login', { email, password });
+        res = await api.post('/auth/login', { email, password });
+      }
+      
+      const userRole = res?.data?.user?.role;
+      let targetUrl = redirectUrl;
+      if (userRole === 'ADMIN' && (redirectUrl === '/dashboard' || !searchParams.get('redirect'))) {
+        targetUrl = '/admin';
       }
       
       // Basic secure redirect validation (must start with / and not //)
-      if (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
-        router.push(redirectUrl);
+      if (targetUrl.startsWith('/') && !targetUrl.startsWith('//')) {
+        router.push(targetUrl);
       } else {
-        router.push('/dashboard');
+        router.push(userRole === 'ADMIN' ? '/admin' : '/dashboard');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Authentication failed';
@@ -56,12 +63,18 @@ function LoginForm() {
     try {
       setIsLoading(true);
       setError('');
-      await api.post('/auth/google', { idToken: credentialResponse.credential });
+      const res = await api.post('/auth/google', { idToken: credentialResponse.credential });
       
-      if (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
-        router.push(redirectUrl);
+      const userRole = res?.data?.user?.role;
+      let targetUrl = redirectUrl;
+      if (userRole === 'ADMIN' && (redirectUrl === '/dashboard' || !searchParams.get('redirect'))) {
+        targetUrl = '/admin';
+      }
+      
+      if (targetUrl.startsWith('/') && !targetUrl.startsWith('//')) {
+        router.push(targetUrl);
       } else {
-        router.push('/dashboard');
+        router.push(userRole === 'ADMIN' ? '/admin' : '/dashboard');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Google authentication failed';
