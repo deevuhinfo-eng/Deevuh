@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../modules/auth/token.service.js';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; email: string };
