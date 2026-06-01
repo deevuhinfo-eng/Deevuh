@@ -20,7 +20,7 @@ export const PRODUCTS: Product[] = [
   {
     id: "baby-blue-coordset",
     title: "Baby Blue Coordset",
-    price: 3499,
+    price: 1999,
     category: "Coordset",
     description: "A beautifully structured baby blue coordset, combining timeless elegance with a contemporary silhouette. Crafted from a premium breathable cotton-silk blend, this matching set features an effortless fluid drape, tailored collar, and clean minimalist finish. Ideal for both relaxed afternoon gatherings and stylish evening soirées.",
     images: [
@@ -47,7 +47,7 @@ export const PRODUCTS: Product[] = [
   {
     id: "beige-outfit",
     title: "Beige Tailored Set",
-    price: 2999,
+    price: 2699,
     category: "Casual Luxury",
     description: "An understated and minimalist beige outfit, tailored for maximum comfort and an effortless editorial aesthetic. Features a clean drape, structured lines, and ultra-soft premium fabric. Perfectly styled as a monochrome statement or split as versatile separates for high-end casual wear.",
     images: [
@@ -70,7 +70,7 @@ export const PRODUCTS: Product[] = [
   {
     id: "brown-coordset",
     title: "Brown Earthy Coordset",
-    price: 3299,
+    price: 2199,
     category: "Coordset",
     description: "Deep earthy tones meet modern relaxed tailoring. This premium brown coordset features detailed utility pockets, elegant cuff finishes, and a comfortable yet sharp fit suitable for year-round styling. The mid-weight textured fabric is exceptionally soft and holds its structured shape beautifully.",
     images: [
@@ -94,7 +94,7 @@ export const PRODUCTS: Product[] = [
   {
     id: "dupatta-beige-outfit",
     title: "Beige Dupatta Set",
-    price: 4299,
+    price: 2199,
     category: "Traditional Luxury",
     description: "An exquisite cream-beige set featuring a beautifully crafted coordinating dupatta. Combining traditional grace with modern tailored cuts, this premium outfit offers a sophisticated drape, intricate hand-stitch detailing along the borders, and an ultra-luxurious feel against the skin.",
     images: [

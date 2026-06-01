@@ -230,7 +230,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
       {/* ════════ PRODUCT PRESENTATION GRID ════════ */}
       <section className="container" style={{ paddingBottom: "80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "64px", alignItems: "start" }}>
+        <div className="product-main-grid">
           
           {/* LEFT: IMAGE PRESENTATION */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -301,6 +301,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
           {/* RIGHT: DETAILS COLUMN */}
           <div
+            className="product-sticky-col"
             style={{
               position: "sticky",
               top: "120px",
@@ -531,13 +532,7 @@ export default function ProductDetailPage({ params }: PageProps) {
             Complete the Wardrobe
           </h2>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "30px",
-            }}
-          >
+          <div className="related-products-grid">
             {relatedProducts.map((p) => (
               <div
                 key={p.id}
@@ -648,14 +643,7 @@ export default function ProductDetailPage({ params }: PageProps) {
         }}
       >
         <div className="container">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              gap: "48px",
-              marginBottom: "60px",
-            }}
-          >
+          <div className="footer-links-grid">
             <div>
               <h3
                 style={{
@@ -722,15 +710,7 @@ export default function ProductDetailPage({ params }: PageProps) {
             ))}
           </div>
 
-          <div
-            style={{
-              borderTop: "1px solid rgba(253, 240, 213, 0.08)",
-              paddingTop: "30px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+          <div className="footer-bottom">
             <span
               style={{
                 fontSize: "12px",

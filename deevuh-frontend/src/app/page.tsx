@@ -174,12 +174,8 @@ export default function Home() {
         }}
       >
         <div
-          className="container"
+          className="container hero-grid"
           style={{
-            display: "grid",
-            gridTemplateColumns: "0.9fr 1.25fr",
-            gap: "40px",
-            alignItems: "center",
             width: "100%",
           }}
         >
@@ -270,14 +266,7 @@ export default function Home() {
 
           {/* Asymmetric Overlapping Mood Board Collage */}
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              height: "640px",
-              position: "relative",
-              paddingLeft: "10px",
-            }}
+            className="hero-collage"
           >
             {PRODUCTS.map((prod, idx) => {
               const style = collageStyles[idx];
@@ -287,14 +276,15 @@ export default function Home() {
                 <Link
                   key={prod.id}
                   href={`/products/${prod.id}`}
+                  className="hero-collage-item"
                   style={{
+                    "--item-height": style.height,
                     position: "relative",
                     overflow: "hidden",
                     border: "1px solid var(--color-outline-variant)",
                     backgroundColor: "var(--color-surface-container-lowest)",
                     display: "block",
                     textDecoration: "none",
-                    height: style.height,
                     width: "25%",
                     alignSelf: style.alignSelf,
                     transform: isHovered 
@@ -309,7 +299,7 @@ export default function Home() {
                     boxShadow: isHovered 
                       ? "0 20px 40px rgba(44, 44, 44, 0.15)" 
                       : "0 4px 12px rgba(44, 44, 44, 0.04)",
-                  }}
+                  } as React.CSSProperties}
                   onMouseEnter={() => setHoveredProduct(prod.id)}
                   onMouseLeave={() => setHoveredProduct(null)}
                 >
@@ -383,12 +373,7 @@ export default function Home() {
         }}
       >
         <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "80px",
-            alignItems: "center",
-          }}
+          className="brand-strip-content"
         >
           {["Handcrafted", "Sustainable", "Premium Fabrics", "Made in India", "Limited Edition"].map(
             (text) => (
@@ -474,13 +459,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "30px",
-            }}
-          >
+          <div className="signature-grid">
             {PRODUCTS.map((product) => {
               const isHovered = hoveredProduct === product.id;
               // If hovered, show 2nd image. Otherwise show 1st image.
@@ -644,17 +623,13 @@ export default function Home() {
         }}
       >
         <div
-          className="container"
+          className="container philosophy-grid"
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            minHeight: "560px",
-            alignItems: "center",
             paddingTop: "0px",
             paddingBottom: "0px",
           }}
         >
-          <div style={{ padding: "80px 80px 80px 0" }}>
+          <div className="philosophy-text-col" style={{ padding: "80px 80px 80px 0" }}>
             <span
               className="label-lg"
               style={{
@@ -714,6 +689,7 @@ export default function Home() {
             </div>
           </div>
           <div
+            className="philosophy-image-col"
             style={{
               height: "100%",
               overflow: "hidden",
@@ -841,14 +817,7 @@ export default function Home() {
         }}
       >
         <div className="container">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              gap: "48px",
-              marginBottom: "60px",
-            }}
-          >
+          <div className="footer-links-grid">
             <div>
               <h3
                 style={{
@@ -915,15 +884,7 @@ export default function Home() {
             ))}
           </div>
 
-          <div
-            style={{
-              borderTop: "1px solid rgba(253, 240, 213, 0.08)",
-              paddingTop: "30px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+          <div className="footer-bottom">
             <span
               style={{
                 fontSize: "12px",
