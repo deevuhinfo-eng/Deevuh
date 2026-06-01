@@ -1,3 +1,4 @@
+import './utils/dns-patch.js';
 import app from './app.js';
 import { initCronJobs } from './cron/cronJobs.js';
 
