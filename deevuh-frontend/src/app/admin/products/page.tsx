@@ -5,6 +5,17 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { PRODUCTS, Product } from "@/data/products";
 
+const mapBackendProduct = (prod: any): Product => ({
+  id: prod.id,
+  title: prod.title,
+  price: Number(prod.basePrice || prod.price || 0),
+  category: prod.category,
+  description: prod.description,
+  images: prod.images ? prod.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
+  sizes: prod.variants && prod.variants.length > 0 ? Array.from(new Set(prod.variants.map((v: any) => v.size))) as string[] : (prod.sizes || []),
+  details: prod.details || ["Premium handcrafted fabric", "Made in India"],
+});
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,8 +39,9 @@ export default function AdminProductsPage() {
     // Attempt backend load, fallback to local dataset if unavailable
     api.get("/products")
       .then((res: any) => {
-        if (res.data && res.data.length > 0) {
-          setProducts(res.data);
+        const productList = res.data || [];
+        if (productList.length > 0) {
+          setProducts(productList.map(mapBackendProduct));
         } else {
           setProducts(PRODUCTS);
         }
@@ -89,36 +101,63 @@ export default function AdminProductsPage() {
     e.preventDefault();
     setSubmitting(true);
 
-    const payload = {
-      title,
-      price: Number(price),
-      category,
-      description,
-      images: images.length > 0 ? images : ["/products/Combo/DSC_0034.jpg"],
-      sizes,
-      details: details.length > 0 ? details : ["Premium handcrafted fabric", "Made in India"],
-    };
+    const basePriceNum = Number(price);
 
     try {
       if (editId) {
         // Backend PUT
-        await api.put(`/products/${editId}`, payload)
-          .catch(() => {
+        const updatePayload = {
+          title,
+          description,
+          basePrice: basePriceNum,
+          category,
+        };
+        await api.put(`/products/${editId}`, updatePayload)
+          .then((res) => {
+            const mapped = mapBackendProduct(res.data);
+            setProducts(products.map(p => p.id === editId ? mapped : p));
+          })
+          .catch((err) => {
+            console.error("Backend update failed, updating locally.", err);
             // Simulated local edit
-            setProducts(products.map(p => p.id === editId ? { ...p, ...payload } : p));
+            const localPayload = {
+              title,
+              price: basePriceNum,
+              category,
+              description,
+              images: images.length > 0 ? images : ["/products/Combo/DSC_0034.jpg"],
+              sizes,
+              details: details.length > 0 ? details : ["Premium handcrafted fabric", "Made in India"],
+            };
+            setProducts(products.map(p => p.id === editId ? { ...p, ...localPayload } : p));
           });
       } else {
         // Backend POST
-        await api.post("/products/create", payload)
+        const createPayload = {
+          title,
+          description,
+          basePrice: basePriceNum,
+          category,
+          variants: sizes.map(size => ({
+            size,
+            price: basePriceNum,
+            stockQty: 100
+          })),
+          images: (images.length > 0 ? images : ["https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114405/deevuh/products/baby%20blue%20coordset/1%20picture.jpg.jpg"])
+            .map(url => ({ imageUrl: url }))
+        };
+
+        await api.post("/products", createPayload)
           .then((res) => {
-            setProducts([res.data, ...products]);
+            setProducts([mapBackendProduct(res.data), ...products]);
           })
-          .catch(() => {
+          .catch((err) => {
+            console.error("Backend create failed, creating locally.", err);
             // Simulated local create
             const newProd: Product = {
               id: title.toLowerCase().replace(/\s+/g, "-"),
               title,
-              price: Number(price),
+              price: basePriceNum,
               category,
               description,
               images: images.length > 0 ? images : ["/products/Combo/DSC_0034.jpg"],
@@ -130,7 +169,7 @@ export default function AdminProductsPage() {
       }
       resetForm();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || "Failed to save product.");
     } finally {
       setSubmitting(false);
     }
