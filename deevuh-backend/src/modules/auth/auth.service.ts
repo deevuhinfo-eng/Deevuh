@@ -3,13 +3,13 @@ import { Response, Request } from 'express';
 import { getAccessCookieOptions, getRefreshCookieOptions } from '../../utils/cookies.js';
 
 export const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
-  res.cookie('deevuh_token', accessToken, getAccessCookieOptions());
-  res.cookie('deevuh_refresh_token', refreshToken, getRefreshCookieOptions());
+  res.cookie('deevuh_token', accessToken, getAccessCookieOptions(res.req));
+  res.cookie('deevuh_refresh_token', refreshToken, getRefreshCookieOptions(res.req));
 };
 
 export const clearAuthCookies = (res: Response) => {
-  res.clearCookie('deevuh_token', getAccessCookieOptions());
-  res.clearCookie('deevuh_refresh_token', getRefreshCookieOptions());
+  res.clearCookie('deevuh_token', getAccessCookieOptions(res.req));
+  res.clearCookie('deevuh_refresh_token', getRefreshCookieOptions(res.req));
 };
 
 export const logAuthEvent = async (

@@ -247,7 +247,7 @@ export const refreshTokens = async (req: Request, res: Response): Promise<void> 
     const newAccessToken = generateAccessToken(payload);
     
     // We only need to set the new access token
-    res.cookie('deevuh_token', newAccessToken, getAccessCookieOptions());
+    res.cookie('deevuh_token', newAccessToken, getAccessCookieOptions(req));
 
     res.status(200).json({ status: 'success', message: 'Token refreshed.' });
   } catch (error: any) {

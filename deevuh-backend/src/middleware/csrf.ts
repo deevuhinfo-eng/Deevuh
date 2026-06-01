@@ -13,15 +13,19 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  // Exclude external webhooks that use their own signature validation
   const excludedPaths = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/google',
+    '/api/checkout/webhooks/payu',
     '/api/payments/webhooks/payu',
-    '/api/checkout/webhooks/payu'
+    '/api/auth/reset-password',
   ];
-  if (excludedPaths.includes(req.path)) {
+
+  const cleanPath = req.path.replace(/\/$/, '');
+  if (excludedPaths.some((p) => cleanPath === p || cleanPath.endsWith(p))) {
     return next();
   }
-
   // Get token from cookie (non-HttpOnly)
   const cookieToken = req.cookies['XSRF-TOKEN'];
   

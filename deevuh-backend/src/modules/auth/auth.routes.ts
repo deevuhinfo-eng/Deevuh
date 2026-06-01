@@ -14,6 +14,7 @@ import { validateRequest } from '../../middleware/validateRequest.js';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { generateCsrfToken } from '../../middleware/csrf.js';
+import { getAuthCookieOptions } from '../../utils/cookies.js';
 
 const authLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
@@ -61,11 +62,10 @@ router.post('/reset-password', authLimiter, validateRequest(resetPasswordSchema)
 
 router.get('/csrf', (req, res) => {
   const token = generateCsrfToken();
+  const options = getAuthCookieOptions(req);
   res.cookie('XSRF-TOKEN', token, {
+    ...options,
     httpOnly: false, // Must be readable by frontend JS
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
   });
   res.status(200).json({ status: 'success', message: 'CSRF token set.' });
 });
