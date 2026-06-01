@@ -70,7 +70,9 @@ app.use(csrfMiddleware);
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  const dbUrl = process.env.DATABASE_URL || '';
+  const redactedUrl = dbUrl.replace(/:[^@]+@/, ':****@');
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString(), dbUrl: redactedUrl });
 });
 
 // Mount routes
