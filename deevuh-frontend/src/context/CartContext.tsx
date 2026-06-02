@@ -53,7 +53,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const meRes = await api.get('/auth/me');
       if (meRes?.status === 'success') {
         setIsAuthenticated(true);
-        // User logged in, fetch from DB
+        
+        // Migrate any guest cart items from localStorage to DB cart
+        const local = localStorage.getItem('deevuh_cart');
+        if (local) {
+          try {
+            const guestItems = JSON.parse(local);
+            if (Array.isArray(guestItems) && guestItems.length > 0) {
+              for (const item of guestItems) {
+                if (item.productVariantId && item.quantity > 0) {
+                  await api.post('/cart/add', {
+                    productVariantId: item.productVariantId,
+                    quantity: item.quantity
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Failed to migrate guest cart:', e);
+          } finally {
+            localStorage.removeItem('deevuh_cart');
+          }
+        }
+
+        // Fetch user's persistent database cart
         const cartRes = await api.get('/cart');
         if (cartRes?.status === 'success' && cartRes.data?.items) {
           // Normalise backend cart structure to frontend CartItem interface

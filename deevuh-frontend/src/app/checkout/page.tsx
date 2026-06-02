@@ -40,6 +40,9 @@ export default function CheckoutPage() {
           setShippingName(res.data.name || '');
           setShippingPhone(res.data.phone || '');
           
+          // Migrate guest cart and fetch backend state
+          await syncCartWithBackend();
+          
           // Pre-populate address from latest order if available
           const ordersRes = await api.get('/orders');
           if (ordersRes?.status === 'success' && ordersRes.data?.length > 0) {
@@ -74,17 +77,14 @@ export default function CheckoutPage() {
     setIsValidatingCoupon(true);
     setCouponError('');
     try {
-      // Validate coupon against backend list
-      const res = await api.get(`/coupons/validate?code=${couponCode.trim()}`);
+      // Validate coupon against backend list via POST request
+      const res = await api.post('/coupons/validate', {
+        code: couponCode.trim(),
+        cartTotal
+      });
       if (res?.status === 'success' && res.data) {
-        const coupon = res.data;
-        let discount = 0;
-        if (coupon.discountType === 'percentage') {
-          discount = Math.round((cartTotal * Number(coupon.discountValue)) / 100 * 100) / 100;
-        } else {
-          discount = Number(coupon.discountValue);
-        }
-        setCouponDiscount(discount);
+        const { coupon, discountAmount } = res.data;
+        setCouponDiscount(discountAmount);
         setAppliedCoupon(coupon.code);
         setCouponCode('');
       } else {
