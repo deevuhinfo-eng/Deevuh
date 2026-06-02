@@ -5,8 +5,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PRODUCTS } from "../../data/products";
 import api from "@/lib/api";
+import { useCart } from "@/context/CartContext";
 
 export default function UserDashboard() {
+  const { cartItems, toggleCart } = useCart();
   const router = useRouter();
   const [customer, setCustomer] = useState({
     name: "Loading...",
@@ -227,6 +229,41 @@ export default function UserDashboard() {
             }}
           >
             Logout
+          </button>
+          <button
+            onClick={() => toggleCart(true)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "20px",
+              color: "var(--color-charcoal)",
+              position: "relative",
+              marginLeft: "10px"
+            }}
+          >
+            ◇
+            {cartItems.length > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-6px",
+                  right: "-8px",
+                  backgroundColor: "var(--color-ruby)",
+                  color: "white",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  width: "15px",
+                  height: "15px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                {cartItems.length}
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -662,9 +699,11 @@ export default function UserDashboard() {
               style={{
                 fontSize: "12px",
                 color: "rgba(253, 240, 213, 0.3)",
+                lineHeight: "1.6"
               }}
             >
-              © 2026 DEEVUH. Handcrafted in India.
+              © 2026 Deevuh LLP. All Rights Reserved.<br />
+              Registered Office: B-42, Vasant Vihar, New Delhi - 110057, India.
             </span>
           </div>
         </div>

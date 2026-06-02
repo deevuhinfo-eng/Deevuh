@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PRODUCTS } from "../data/products";
+import { useCart } from "@/context/CartContext";
 
 export default function Home() {
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
+  const { cartItems, toggleCart } = useCart();
 
   // Custom staggered/rotated collage layout details for each product
   const collageStyles = [
@@ -146,6 +148,7 @@ export default function Home() {
             ♡
           </button>
           <button
+            onClick={() => toggleCart(true)}
             style={{
               background: "none",
               border: "none",
@@ -156,6 +159,27 @@ export default function Home() {
             }}
           >
             ◇
+            {cartItems.length > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-6px",
+                  right: "-8px",
+                  backgroundColor: "var(--color-ruby)",
+                  color: "white",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  width: "15px",
+                  height: "15px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                {cartItems.length}
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -889,9 +913,11 @@ export default function Home() {
               style={{
                 fontSize: "12px",
                 color: "rgba(253, 240, 213, 0.3)",
+                lineHeight: "1.6"
               }}
             >
-              © 2026 DEEVUH. Handcrafted in India.
+              © 2026 Deevuh LLP. All Rights Reserved.<br />
+              Registered Office: B-42, Vasant Vihar, New Delhi - 110057, India.
             </span>
             <div style={{ display: "flex", gap: "32px" }}>
               {[

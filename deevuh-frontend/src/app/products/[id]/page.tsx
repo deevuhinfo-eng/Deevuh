@@ -3,6 +3,7 @@
 import React, { use, useState } from "react";
 import Link from "next/link";
 import { PRODUCTS, Product } from "../../../data/products";
+import { useCart } from "@/context/CartContext";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -61,20 +62,26 @@ export default function ProductDetailPage({ params }: PageProps) {
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"details" | "shipping" | "artisans">("details");
 
+  const { addToCart, toggleCart, cartItems } = useCart();
+
   // Get other 3 products for the related section
   const relatedProducts = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
 
-  const handleAddToBag = () => {
+  const handleAddToBag = async () => {
     if (!selectedSize) {
       alert("Please select a size to experience DEEVUH tailoring.");
       return;
     }
     setIsAdding(true);
-    setTimeout(() => {
-      setIsAdding(false);
+    try {
+      await addToCart(product, selectedSize, 1);
       setAddedSuccess(true);
       setTimeout(() => setAddedSuccess(false), 3000);
-    }, 1200);
+    } catch (err: any) {
+      alert(err.message || "Failed to add to bag.");
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   return (
@@ -190,6 +197,7 @@ export default function ProductDetailPage({ params }: PageProps) {
             ♡
           </button>
           <button
+            onClick={() => toggleCart(true)}
             style={{
               background: "none",
               border: "none",
@@ -200,7 +208,27 @@ export default function ProductDetailPage({ params }: PageProps) {
             }}
           >
             ◇
-            {addedSuccess && (
+            {cartItems.length > 0 ? (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-6px",
+                  right: "-8px",
+                  backgroundColor: "var(--color-ruby)",
+                  color: "white",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  width: "15px",
+                  height: "15px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                {cartItems.length}
+              </span>
+            ) : addedSuccess ? (
               <span
                 style={{
                   position: "absolute",
@@ -212,7 +240,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   backgroundColor: "var(--color-ruby)",
                 }}
               />
-            )}
+            ) : null}
           </button>
         </div>
       </nav>
@@ -715,15 +743,21 @@ export default function ProductDetailPage({ params }: PageProps) {
               style={{
                 fontSize: "12px",
                 color: "rgba(253, 240, 213, 0.3)",
+                lineHeight: "1.6"
               }}
             >
-              © 2026 DEEVUH. Handcrafted in India.
+              © 2026 Deevuh LLP. All Rights Reserved.<br />
+              Registered Office: B-42, Vasant Vihar, New Delhi - 110057, India.
             </span>
             <div style={{ display: "flex", gap: "32px" }}>
-              {["Privacy Protocol", "Terms of Calibrations", "Cookie Consent"].map((item) => (
+              {[
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
+                { label: "Refund Policy", href: "/refund" },
+              ].map((item) => (
                 <Link
-                  key={item}
-                  href="#"
+                  key={item.href}
+                  href={item.href}
                   style={{
                     fontSize: "12px",
                     color: "rgba(253, 240, 213, 0.3)",
@@ -733,7 +767,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(253, 240, 213, 0.6)")}
                   onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(253, 240, 213, 0.3)")}
                 >
-                  {item}
+                  {item.label}
                 </Link>
               ))}
             </div>

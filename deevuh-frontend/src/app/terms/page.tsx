@@ -126,8 +126,8 @@ export default function TermsPage() {
           }}>
             Terms &amp; Conditions
           </h1>
-          <p style={{ fontSize: '14px', color: 'var(--color-on-surface-variant)' }}>
-            Welcome to Deevuh. By placing an order with us, you agree to the following Terms &amp; Conditions.
+          <p style={{ fontSize: '14px', color: 'var(--color-on-surface-variant)', lineHeight: 1.6 }}>
+            Welcome to Deevuh (operated by **Deevuh LLP**). By placing an order with us, you agree to the following Terms &amp; Conditions. Registered Office: B-42, Vasant Vihar, New Delhi - 110057, India.
           </p>
         </div>
 

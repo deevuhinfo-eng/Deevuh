@@ -118,9 +118,9 @@ export default function PrivacyPage() {
           }}>
             Privacy Policy
           </h1>
-          <p style={{ fontSize: '14px', color: 'var(--color-on-surface-variant)' }}>
-            Welcome to Deevuh. Your privacy is important to us, and we are committed to protecting your personal
-            information. By using our website, you agree to the terms mentioned in this Privacy Policy.
+          <p style={{ fontSize: '14px', color: 'var(--color-on-surface-variant)', lineHeight: 1.6 }}>
+            Welcome to Deevuh (operated by **Deevuh LLP**). Your privacy is important to us, and we are committed to protecting your personal
+            information. By using our website, you agree to the terms mentioned in this Privacy Policy. Registered Office: B-42, Vasant Vihar, New Delhi - 110057, India.
           </p>
         </div>
 
