@@ -1,9 +1,10 @@
 "use client";
 
-import React, { use, useState } from "react";
+import React, { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { PRODUCTS, Product } from "../../../data/products";
 import { useCart } from "@/context/CartContext";
+import api from "@/lib/api";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -14,6 +15,22 @@ export default function ProductDetailPage({ params }: PageProps) {
   
   // Find product by id
   const product = PRODUCTS.find((p) => p.id === id);
+
+  const [dbProduct, setDbProduct] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchDbProduct = async () => {
+      try {
+        const res = await api.get(`/products/${id}`);
+        if (res?.status === 'success' && res.data) {
+          setDbProduct(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load DB product variants:', err);
+      }
+    };
+    fetchDbProduct();
+  }, [id]);
 
   // Fallback if product not found
   if (!product) {
@@ -74,7 +91,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     }
     setIsAdding(true);
     try {
-      await addToCart(product, selectedSize, 1);
+      await addToCart(dbProduct || product, selectedSize, 1);
       setAddedSuccess(true);
       setTimeout(() => setAddedSuccess(false), 3000);
     } catch (err: any) {

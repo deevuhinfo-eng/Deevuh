@@ -38,6 +38,13 @@ router.post('/add', authMiddleware, async (req: AuthenticatedRequest, res: Respo
     const userId = req.user?.id;
     const { productVariantId, quantity } = req.body;
 
+    // Validate if it is a valid UUID to prevent Prisma findUnique from crashing on invalid Postgres cast!
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!productVariantId || !uuidRegex.test(productVariantId)) {
+      res.status(400).json({ status: 'error', message: 'Invalid product variant ID format.' });
+      return;
+    }
+
     // Validate variant exists and has stock
     const variant = await prisma.productVariant.findUnique({ where: { id: productVariantId } });
     if (!variant) {

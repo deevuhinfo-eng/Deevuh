@@ -61,9 +61,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const guestItems = JSON.parse(local);
             if (Array.isArray(guestItems) && guestItems.length > 0) {
               for (const item of guestItems) {
-                if (item.productVariantId && item.quantity > 0) {
+                let variantId = item.productVariantId;
+                
+                // If it is a fallback ID (unregistered static mock), dynamically resolve the DB UUID
+                if (variantId?.startsWith('fallback-') && item.variant?.product?.id) {
+                  try {
+                    const prodRes = await api.get(`/products/${item.variant.product.id}`);
+                    if (prodRes?.status === 'success' && prodRes.data?.variants) {
+                      const matchingVar = prodRes.data.variants.find(
+                        (v: any) => v.size === item.variant.size
+                      );
+                      if (matchingVar) {
+                        variantId = matchingVar.id;
+                      }
+                    }
+                  } catch (err) {
+                    console.error('Failed to resolve fallback variant ID during migration:', err);
+                  }
+                }
+
+                // Only post valid UUIDs to the backend cart to prevent database cast crashes
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (variantId && uuidRegex.test(variantId) && item.quantity > 0) {
                   await api.post('/cart/add', {
-                    productVariantId: item.productVariantId,
+                    productVariantId: variantId,
                     quantity: item.quantity
                   });
                 }
