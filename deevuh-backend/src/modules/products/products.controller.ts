@@ -38,10 +38,48 @@ export const listProducts = async (req: Request, res: Response): Promise<void> =
 
 export const getProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: req.params.id as string },
-      include: { variants: true, images: true },
-    });
+    const idOrSlug = req.params.id as string;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    let product = null;
+
+    if (uuidRegex.test(idOrSlug)) {
+      product = await prisma.product.findUnique({
+        where: { id: idOrSlug },
+        include: { variants: true, images: true },
+      });
+    } else {
+      // Map frontend slug to database title
+      const slugMap: Record<string, string> = {
+        'baby-blue-coordset': 'Baby Blue Coordset',
+        'beige-outfit': 'Beige Tailored Set',
+        'brown-coordset': 'Brown Earthy Coordset',
+        'dupatta-beige-outfit': 'Beige Dupatta Set',
+      };
+
+      const title = slugMap[idOrSlug];
+      if (title) {
+        product = await prisma.product.findFirst({
+          where: { title },
+          include: { variants: true, images: true },
+        });
+      }
+
+      // Fallback matching slugified titles
+      if (!product) {
+        const allProducts = await prisma.product.findMany({
+          include: { variants: true, images: true },
+        });
+        product = allProducts.find(p => {
+          const formattedSlug = p.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+          return formattedSlug === idOrSlug;
+        }) || null;
+      }
+    }
+
     if (!product) {
       res.status(404).json({ status: 'error', message: 'Product not found.' });
       return;
