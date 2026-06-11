@@ -390,16 +390,21 @@ export default function ProductDetailPage({ params }: PageProps) {
                 borderBottom: "1px solid var(--color-outline-variant)",
               }}
             >
-              <span
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "26px",
-                  fontWeight: 700,
-                  color: "var(--color-charcoal)",
-                }}
-              >
-                ₹{product.price.toLocaleString("en-IN")}
-              </span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "26px",
+                    fontWeight: 700,
+                    color: "var(--color-charcoal)",
+                  }}
+                >
+                  ₹{product.price.toLocaleString("en-IN")}
+                </span>
+                <span style={{ fontSize: "11px", color: "var(--color-on-surface-variant)", fontWeight: 500 }}>
+                  (GST Included)
+                </span>
+              </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "14px", color: "var(--color-ruby)" }}>★★★★★</span>
