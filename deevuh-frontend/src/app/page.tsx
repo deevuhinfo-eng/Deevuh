@@ -204,18 +204,6 @@ export default function Home() {
           }}
         >
           <div style={{ paddingRight: "10px", zIndex: 10 }}>
-            <span
-              className="label-lg"
-              style={{
-                color: "var(--color-ruby)",
-                marginBottom: "20px",
-                display: "block",
-                fontWeight: 600,
-                letterSpacing: "0.2em",
-              }}
-            >
-              EDITORIAL V3 / 2026
-            </span>
             <h1
               style={{
                 fontFamily: "var(--font-serif)",

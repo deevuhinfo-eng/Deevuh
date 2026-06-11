@@ -49,6 +49,14 @@ router.post(
         return;
       }
 
+      if (!PAYU_ENABLED) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Online payments are currently unavailable. Cash on Delivery is not supported.',
+        });
+        return;
+      }
+
       const { shippingName, shippingPhone, shippingAddress, couponCode } = req.body;
 
       // Get active cart with full variant and product data
@@ -172,35 +180,6 @@ router.post(
         return createdOrder;
       });
 
-      // ── PayU DISABLED MODE ────────────────────────────────────────
-      if (!PAYU_ENABLED) {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        console.log(`[Checkout] Order ${order.id} created (COD mode). TxnID: ${txnid}`);
-        
-        // Fire-and-forget order confirmation email
-        if (user?.email) {
-          sendOrderConfirmationEmail(user.email, {
-            orderId: order.id,
-            customerName: shippingName,
-            finalAmount,
-            shippingAddress,
-          }).catch(console.error);
-        }
-
-        res.status(201).json({
-          status: 'success',
-          data: {
-            orderId: order.id,
-            paymentMethod: 'COD',
-            message:
-              'Your order has been placed! We will confirm it via WhatsApp or email within 24 hours.',
-            summary: { totalAmount, discountAmount, gstAmount, finalAmount },
-          },
-        });
-        return;
-      }
-
-      // ── PayU ENABLED MODE (production) ───────────────────────────
       const { generatePayUHash } = await import('./payments.service.js');
       const user = await prisma.user.findUnique({ where: { id: userId } });
       const payuHash = generatePayUHash(
@@ -236,6 +215,38 @@ router.post(
     }
   }
 );
+
+/**
+ * POST /api/checkout/success
+ * Browser redirect from PayU on successful payment.
+ */
+router.post('/success', async (req: Request, res: Response): Promise<void> => {
+  const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
+  try {
+    const { processPayUWebhook } = await import('./payments.service.js');
+    await processPayUWebhook(req.body);
+    res.redirect(`${frontendUrl}/dashboard?payment=success`);
+  } catch (error: any) {
+    console.error('[PayU Success Redirect Error]', error.message);
+    res.redirect(`${frontendUrl}/dashboard?payment=success`);
+  }
+});
+
+/**
+ * POST /api/checkout/failure
+ * Browser redirect from PayU on failed/cancelled payment.
+ */
+router.post('/failure', async (req: Request, res: Response): Promise<void> => {
+  const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
+  try {
+    const { processPayUWebhook } = await import('./payments.service.js');
+    await processPayUWebhook(req.body);
+    res.redirect(`${frontendUrl}/checkout?payment=failure`);
+  } catch (error: any) {
+    console.error('[PayU Failure Redirect Error]', error.message);
+    res.redirect(`${frontendUrl}/checkout?payment=failure`);
+  }
+});
 
 /**
  * POST /api/checkout/webhooks/payu

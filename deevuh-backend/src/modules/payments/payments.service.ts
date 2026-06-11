@@ -62,6 +62,11 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
     return true;
   }
 
+  if (existingOrder.paymentStatus === 'FAILED') {
+    console.log(`[PayU] Transaction ${txnid} already processed as FAILED.`);
+    return false;
+  }
+
   if (status === 'success') {
     await prisma.order.update({
       where: { paymentGatewayTxnId: txnid },

@@ -65,6 +65,16 @@ export default function CheckoutPage() {
     verifySession();
   }, [router]);
 
+  // Handle PayU failure redirects
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment') === 'failure') {
+        setError('Payment failed or was canceled. Please review your details and try again.');
+      }
+    }
+  }, []);
+
   // If cart is empty and we are not in success state, redirect to home
   useEffect(() => {
     if (!isVerifying && cartItems.length === 0 && !successOrder) {
