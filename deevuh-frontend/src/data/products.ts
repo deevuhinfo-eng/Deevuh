@@ -101,10 +101,10 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "dupatta-beige-outfit",
-    title: "Beige Dupatta Set",
+    title: "The Rani Coordset",
     price: 2199,
-    category: "Traditional Luxury",
-    description: "An exquisite cream-beige set featuring a beautifully crafted coordinating dupatta. Combining traditional grace with modern tailored cuts, this premium outfit offers a sophisticated drape, intricate hand-stitch detailing along the borders, and an ultra-luxurious feel against the skin.",
+    category: "Coordset",
+    description: "A little tradition, a little modernity, and a whole lot of elegance.\n\nDesigned for the woman who loves timeless silhouettes with a contemporary touch, this three-piece set features a beautifully tailored deep U-neck waistcoat, flattering bootcut pants, and a flowing dupatta that completes the look effortlessly.\n\nThe waistcoat comes with an adjustable back tie, allowing you to customize the fit to your comfort while enhancing your natural silhouette. Thoughtfully designed to flatter, it creates a look that feels both sophisticated and feminine.\n\nCrafted in premium Banana Crepe fabric, the set is lightweight, breathable, and comfortable enough to wear through long celebrations, festive gatherings, intimate functions, or elegant evening outings.\n\n✨ Made for the woman who loves turning heads quietly. Classic, graceful, and effortlessly striking—this is the kind of outfit that feels memorable long after the occasion is over.",
     images: [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114854/deevuh/products/dupatta%20beige%20outfit/1st%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114863/deevuh/products/dupatta%20beige%20outfit/2nd%20picture.jpg.jpg",
@@ -114,11 +114,16 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     details: [
-      "Premium handloom-finish organic cotton base",
-      "Includes a semi-sheer lightweight matching dupatta",
-      "Subtle gold zari embroidery highlight on neckline and borders",
-      "Straight-cut tunic with relaxed tapered trousers",
-      "Dry clean only for gold thread preservation"
+      "Three-piece set: Waistcoat, Bootcut Pants & Dupatta",
+      "Elegant deep U-neck waistcoat",
+      "Adjustable back tie for a personalized fit",
+      "Flattering high-waisted bootcut pants",
+      "Lightweight and breathable Banana Crepe fabric",
+      "Minimal stretch with a structured drape",
+      "Perfect for festive gatherings, celebrations, dinners, and special occasions",
+      "Proudly crafted in India",
+      "Gentle hand wash recommended · Avoid frequent machine washing",
+      "Iron on low to medium heat · Do not use high heat directly on fabric"
     ]
   }
 ];
