@@ -19,10 +19,10 @@ export interface Product {
 export const PRODUCTS: Product[] = [
   {
     id: "baby-blue-coordset",
-    title: "Baby Blue Coordset",
+    title: "The Vatavaran Coordset",
     price: 1999,
     category: "Coordset",
-    description: "A beautifully structured baby blue coordset, combining timeless elegance with a contemporary silhouette. Crafted from a premium breathable cotton-silk blend, this matching set features an effortless fluid drape, tailored collar, and clean minimalist finish. Ideal for both relaxed afternoon gatherings and stylish evening soirées.",
+    description: "Some outfits instantly feel like summer—and this is one of them.\n\nMeet our Vatavaran Co-ord Set, crafted in a dreamy baby blue hue that's made for sunny brunches, vacation mornings, summer dates, and every moment you want to feel effortlessly pretty. Designed to be both flattering and comfortable, this set combines a feminine silhouette with thoughtful details you'll actually appreciate.\n\nThe back features adjustable straps, allowing you to customize the fit according to your comfort and body shape. And because confidence is the best accessory, the skirt comes with built-in shorts underneath, giving you the freedom to move, twirl, and enjoy your day without a second thought.\n\nCrafted from premium Banana Crepe fabric, it's lightweight, breathable, and perfect for warm-weather dressing while maintaining an elegant drape.",
     images: [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114405/deevuh/products/baby%20blue%20coordset/1%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114415/deevuh/products/baby%20blue%20coordset/2%20picture.jpg.jpg",
@@ -37,11 +37,15 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     details: [
-      "Premium breathable cotton-silk blend fabric",
-      "Tailored unstructured collar with clean stitching",
-      "Matching wide-leg relaxed trousers with elasticated waist",
-      "Handcrafted with precision in India",
-      "Dry clean recommended"
+      "Two-piece co-ord set in soft baby blue",
+      "Adjustable back straps for a customizable fit",
+      "Built-in shorts underneath the skirt",
+      "Lightweight & breathable premium Banana Crepe fabric",
+      "Minimal stretch for a structured silhouette",
+      "Perfect for brunch dates, vacations, summer outings & special occasions",
+      "Proudly made in India",
+      "Gentle hand wash recommended · Avoid frequent machine washing",
+      "Iron on low to medium heat · Do not use high heat directly on fabric"
     ]
   },
   {

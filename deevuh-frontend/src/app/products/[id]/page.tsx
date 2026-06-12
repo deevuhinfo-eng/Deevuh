@@ -415,16 +415,21 @@ export default function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {/* Description */}
-            <p
+            <div
               style={{
-                fontSize: "15px",
-                lineHeight: 1.8,
+                fontSize: "13px",
+                lineHeight: 1.9,
                 color: "var(--color-on-surface-variant)",
                 marginBottom: "32px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
               }}
             >
-              {product.description}
-            </p>
+              {product.description.split("\n\n").map((para, idx) => (
+                <p key={idx} style={{ margin: 0 }}>{para}</p>
+              ))}
+            </div>
 
             {/* Size Selector */}
             <div style={{ marginBottom: "36px" }}>
