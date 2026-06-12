@@ -13,10 +13,9 @@ interface PageProps {
 export default function ProductDetailPage({ params }: PageProps) {
   const { id } = use(params);
   
-  // Find product by id
-  const product = PRODUCTS.find((p) => p.id === id);
-
+  const staticProduct = PRODUCTS.find((p) => p.id === id);
   const [dbProduct, setDbProduct] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(!staticProduct);
 
   useEffect(() => {
     const fetchDbProduct = async () => {
@@ -27,10 +26,70 @@ export default function ProductDetailPage({ params }: PageProps) {
         }
       } catch (err) {
         console.error('Failed to load DB product variants:', err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchDbProduct();
   }, [id]);
+
+  // Resolve static product metadata either by direct ID (slug) or from database product title
+  const product = staticProduct || (() => {
+    if (dbProduct) {
+      const titleMap: Record<string, string> = {
+        'Baby Blue Coordset': 'baby-blue-coordset',
+        'The Vatavaran Coordset': 'baby-blue-coordset',
+        'Beige Tailored Set': 'beige-outfit',
+        'The Korean Coordset': 'beige-outfit',
+        'Brown Earthy Coordset': 'brown-coordset',
+        'The Mocha Brown Coordset': 'brown-coordset',
+        'Beige Dupatta Set': 'dupatta-beige-outfit',
+        'The Rani Coordset': 'dupatta-beige-outfit',
+      };
+      const staticId = titleMap[dbProduct.title];
+      return PRODUCTS.find((p) => p.id === staticId);
+    }
+    return undefined;
+  })();
+
+  const [activeImage, setActiveImage] = useState<string>(product?.images?.[0] || "");
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"details" | "shipping">("details");
+  const [showSizeGuide, setShowSizeGuide] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (product && product.images && product.images.length > 0) {
+      setActiveImage(product.images[0]);
+    }
+  }, [product]);
+
+  const { addToCart, toggleCart, cartItems } = useCart();
+
+  // Get other 3 products for the related section
+  const relatedProducts = product 
+    ? PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3)
+    : [];
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "var(--color-cream)",
+          color: "var(--color-charcoal)",
+        }}
+      >
+        <div style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Calibrating Deevuh Details...
+        </div>
+      </div>
+    );
+  }
 
   // Fallback if product not found
   if (!product) {
@@ -72,18 +131,6 @@ export default function ProductDetailPage({ params }: PageProps) {
       </div>
     );
   }
-
-  const [activeImage, setActiveImage] = useState<string>(product.images[0]);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState<boolean>(false);
-  const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"details" | "shipping">("details");
-  const [showSizeGuide, setShowSizeGuide] = useState<boolean>(false);
-
-  const { addToCart, toggleCart, cartItems } = useCart();
-
-  // Get other 3 products for the related section
-  const relatedProducts = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
 
   const handleAddToBag = async () => {
     if (!selectedSize) {
