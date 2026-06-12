@@ -89,7 +89,7 @@ export default function Home() {
                 item === "Collection"
                   ? "#collection-section"
                   : item === "Our Story"
-                  ? "#footer-section"
+                  ? "#our-story-section"
                   : "#footer-section"
               }
               style={{
@@ -553,6 +553,101 @@ export default function Home() {
         </div>
       </section>
 
+
+      {/* ════════ OUR STORY ════════ */}
+      <section
+        id="our-story-section"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "520px",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {/* Background image */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+          }}
+        >
+          <img
+            src="/products/Combo/DSC_0079.jpg"
+            alt="Behind the scenes at DEEVUH"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              filter: "brightness(0.35)",
+            }}
+          />
+        </div>
+
+        {/* Text overlay */}
+        <div
+          className="container"
+          style={{
+            position: "relative",
+            zIndex: 1,
+            maxWidth: "560px",
+            padding: "80px 24px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: "rgba(253, 240, 213, 0.5)",
+              display: "block",
+              marginBottom: "16px",
+            }}
+          >
+            Our Story
+          </span>
+          <h2
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "22px",
+              fontWeight: 600,
+              lineHeight: 1.4,
+              color: "var(--color-cream)",
+              marginBottom: "24px",
+            }}
+          >
+            From Two Best Friends, With Love.
+          </h2>
+          <div
+            style={{
+              fontSize: "13px",
+              lineHeight: 1.9,
+              color: "rgba(253, 240, 213, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <p style={{ margin: 0 }}>
+              Deevuh was born from a shared love for fashion and a dream to create something meaningful together.
+            </p>
+            <p style={{ margin: 0 }}>
+              Proudly made in India, every piece is crafted with care by talented artisans and karigars who bring our designs to life. Behind every stitch is craftsmanship, passion, and countless hours of dedication.
+            </p>
+            <p style={{ margin: 0, fontWeight: 500, color: "var(--color-cream)" }}>
+              We're not here to chase trends.
+            </p>
+            <p style={{ margin: 0 }}>
+              We're here to create pieces that make you feel confident, beautiful, and unapologetically yourself.
+            </p>
+            <p style={{ margin: 0, fontStyle: "italic", color: "rgba(253, 240, 213, 0.5)", marginTop: "8px" }}>
+              Thank you for supporting our dream and becoming part of the Deevuh story. ♡
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ════════ NEWSLETTER ════════ */}
       <section
