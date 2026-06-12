@@ -287,7 +287,7 @@ export default function AdminProductsPage() {
           <div className="stack-sm" style={{ marginBottom: "20px" }}>
             <label className="label-md">Tailored Patterns Available (Sizes)</label>
             <div style={{ display: "flex", gap: "8px" }}>
-              {["XS", "S", "M", "L", "XL"].map((size) => {
+              {["XS", "S", "M", "L", "XL", "XXL"].map((size) => {
                 const active = sizes.includes(size);
                 return (
                   <button

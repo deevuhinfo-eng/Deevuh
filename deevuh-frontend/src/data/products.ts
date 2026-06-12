@@ -35,7 +35,7 @@ export const PRODUCTS: Product[] = [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114538/deevuh/products/baby%20blue%20coordset/dsc_0121.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114566/deevuh/products/baby%20blue%20coordset/dsc_0127.jpg.jpg"
     ],
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: ["XS", "S", "M", "L"],
     details: [
       "Two-piece co-ord set in soft baby blue",
       "Adjustable back straps for a customizable fit",
@@ -62,7 +62,7 @@ export const PRODUCTS: Product[] = [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114640/deevuh/products/beige%20outfit/5th%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114656/deevuh/products/beige%20outfit/6%20picture.jpg.jpg"
     ],
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: ["XS", "S", "M", "L"],
     details: [
       "Two-piece co-ord set: Asymmetrical Waistcoat & Flared Pants",
       "Statement asymmetrical waistcoat with button closures",
@@ -92,7 +92,7 @@ export const PRODUCTS: Product[] = [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114755/deevuh/products/brown%20coordsets/6th%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114774/deevuh/products/brown%20coordsets/7th%20picture.jpg.jpg"
     ],
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
     details: [
       "Two-piece co-ord set in rich mocha brown",
       "Versatile double-zipper top styleable in multiple ways",
@@ -118,7 +118,7 @@ export const PRODUCTS: Product[] = [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114893/deevuh/products/dupatta%20beige%20outfit/4th%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114906/deevuh/products/dupatta%20beige%20outfit/5th%20picture.jpg.jpg"
     ],
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: ["XS", "S", "M", "L"],
     details: [
       "Three-piece set: Waistcoat, Bootcut Pants & Dupatta",
       "Elegant deep U-neck waistcoat",
