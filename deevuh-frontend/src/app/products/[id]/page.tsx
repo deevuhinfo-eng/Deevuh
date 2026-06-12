@@ -219,18 +219,35 @@ export default function ProductDetailPage({ params }: PageProps) {
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontSize: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
               color: "var(--color-charcoal)",
               position: "relative",
             }}
           >
-            ◇
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
             {cartItems.length > 0 ? (
               <span
                 style={{
                   position: "absolute",
-                  top: "-6px",
-                  right: "-8px",
+                  top: "-4px",
+                  right: "-6px",
                   backgroundColor: "var(--color-ruby)",
                   color: "white",
                   fontSize: "9px",
@@ -249,8 +266,8 @@ export default function ProductDetailPage({ params }: PageProps) {
               <span
                 style={{
                   position: "absolute",
-                  top: "-4px",
-                  right: "-6px",
+                  top: "-2px",
+                  right: "-2px",
                   width: "8px",
                   height: "8px",
                   borderRadius: "50%",
