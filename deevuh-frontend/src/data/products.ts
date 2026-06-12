@@ -22,7 +22,7 @@ export const PRODUCTS: Product[] = [
     title: "The Vatavaran Coordset",
     price: 1999,
     category: "Coordset",
-    description: "Some outfits instantly feel like summer—and this is one of them.\n\nMeet our Vatavaran Co-ord Set, crafted in a dreamy baby blue hue that's made for sunny brunches, vacation mornings, summer dates, and every moment you want to feel effortlessly pretty. Designed to be both flattering and comfortable, this set combines a feminine silhouette with thoughtful details you'll actually appreciate.\n\nThe back features adjustable straps, allowing you to customize the fit according to your comfort and body shape. And because confidence is the best accessory, the skirt comes with built-in shorts underneath, giving you the freedom to move, twirl, and enjoy your day without a second thought.\n\nCrafted from premium Banana Crepe fabric, it's lightweight, breathable, and perfect for warm-weather dressing while maintaining an elegant drape.",
+    description: "The Vatavaran coordset top comes with a halter neck, adjustable straps, and a peplum fit that looks so flattering on. You can tighten or loosen it from the back to get your perfect fit. Paired with the cutest little skirt (don't worry, it has shorts underneath ✨), so you can move around comfortably all day.\n\nBasically the outfit you'll keep reaching for when you want to look cute with zero effort.",
     images: [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114405/deevuh/products/baby%20blue%20coordset/1%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114415/deevuh/products/baby%20blue%20coordset/2%20picture.jpg.jpg",
