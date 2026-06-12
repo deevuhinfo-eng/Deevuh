@@ -47,7 +47,24 @@ export default function ProductDetailPage({ params }: PageProps) {
         'The Rani Coordset': 'dupatta-beige-outfit',
       };
       const staticId = titleMap[dbProduct.title];
-      return PRODUCTS.find((p) => p.id === staticId);
+      if (staticId) {
+        const found = PRODUCTS.find((p) => p.id === staticId);
+        if (found) return found;
+      }
+
+      // Fallback for custom products added in admin panel
+      return {
+        id: dbProduct.id,
+        title: dbProduct.title,
+        price: Number(dbProduct.basePrice || dbProduct.price || 0),
+        category: dbProduct.category,
+        description: dbProduct.description || "",
+        images: dbProduct.images ? dbProduct.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
+        sizes: dbProduct.variants && dbProduct.variants.length > 0 
+          ? Array.from(new Set(dbProduct.variants.map((v: any) => v.size))) as string[] 
+          : (dbProduct.sizes || []),
+        details: dbProduct.details || ["Premium handcrafted fabric", "Made in India"],
+      } as Product;
     }
     return undefined;
   })();
