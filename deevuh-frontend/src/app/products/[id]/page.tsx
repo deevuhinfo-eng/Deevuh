@@ -549,9 +549,17 @@ export default function ProductDetailPage({ params }: PageProps) {
                   </ul>
                 )}
                 {activeTab === "shipping" && (
-                  <p style={{ fontSize: "14px", lineHeight: "1.8", color: "var(--color-on-surface-variant)", margin: 0 }}>
-                    We offer complimentary, fully insured express shipping across India. Orders are processed within 24 hours and shipped from our studio in New Delhi. Deliveries take 3 to 5 business days. International dispatches can be customized upon request.
-                  </p>
+                  <div style={{ fontSize: "13px", lineHeight: "1.9", color: "var(--color-on-surface-variant)", margin: 0 }}>
+                    <p style={{ fontWeight: 600, marginBottom: "12px", color: "var(--color-on-surface)" }}>
+                      Made With Love, Delivered With Care 🤍
+                    </p>
+                    <p style={{ marginBottom: "12px" }}>
+                      The moment you place your order, we start preparing your Deevuh fit with lots of love and attention.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      Your outfit will reach you within 7–10 days, and trust us, it’ll be worth the wait. ✨
+                    </p>
+                  </div>
                 )}
                 {activeTab === "artisans" && (
                   <p style={{ fontSize: "14px", lineHeight: "1.8", color: "var(--color-on-surface-variant)", margin: 0 }}>
