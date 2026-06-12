@@ -78,6 +78,7 @@ export default function ProductDetailPage({ params }: PageProps) {
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"details" | "shipping">("details");
+  const [showSizeGuide, setShowSizeGuide] = useState<boolean>(false);
 
   const { addToCart, toggleCart, cartItems } = useCart();
 
@@ -458,9 +459,29 @@ export default function ProductDetailPage({ params }: PageProps) {
                   marginBottom: "12px",
                 }}
               >
-                <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                  Select Size
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    Select Size
+                  </span>
+                  {product.id === "baby-blue-coordset" && (
+                    <button
+                      onClick={() => setShowSizeGuide(true)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--color-ruby)",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                        padding: 0,
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Size Guide
+                    </button>
+                  )}
+                </div>
                 {selectedSize && (
                   <span style={{ fontSize: "12px", color: "var(--color-ruby)", fontWeight: 600 }}>
                     Selected: {selectedSize}
@@ -844,6 +865,175 @@ export default function ProductDetailPage({ params }: PageProps) {
           </div>
         </div>
       </footer>
+
+      {showSizeGuide && product.id === "baby-blue-coordset" && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(8px)",
+            padding: "20px",
+          }}
+          onClick={() => setShowSizeGuide(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-cream)",
+              border: "1px solid var(--color-outline-variant)",
+              maxWidth: "600px",
+              width: "100%",
+              padding: "40px",
+              boxShadow: "0 24px 48px rgba(44, 44, 44, 0.15)",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: "24px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowSizeGuide(false)}
+              style={{
+                position: "absolute",
+                top: "24px",
+                right: "24px",
+                background: "none",
+                border: "none",
+                fontSize: "24px",
+                color: "var(--color-charcoal)",
+                cursor: "pointer",
+                padding: "4px",
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div style={{ textAlign: "center" }}>
+              <h2
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "24px",
+                  fontWeight: 700,
+                  color: "var(--color-ruby)",
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  marginBottom: "8px",
+                }}
+              >
+                DEEVUH
+              </h2>
+              <p
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--color-charcoal)",
+                  margin: "0 0 4px 0",
+                }}
+              >
+                Vatavaran Co-ord Set
+              </p>
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  color: "var(--color-on-surface-variant)",
+                  margin: 0,
+                }}
+              >
+                Official Size Guide
+              </p>
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "12px",
+                  textAlign: "center",
+                  border: "1px solid var(--color-outline-variant)",
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: "#582f34", color: "var(--color-cream)" }}>
+                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Size</th>
+                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Bust (Top)</th>
+                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>High Waist (Skirt Start)</th>
+                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Normal Waist (Reference)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { size: "XS", bust: "30\"", highWaist: "26\"", normalWaist: "28\"" },
+                    { size: "S", bust: "32\"", highWaist: "28\"", normalWaist: "30\"" },
+                    { size: "M", bust: "34\"", highWaist: "30\"", normalWaist: "32\"" },
+                    { size: "L", bust: "36\"", highWaist: "34\"", normalWaist: "36\"" },
+                  ].map((row) => (
+                    <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                      <td style={{ padding: "12px 8px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
+                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.highWaist}</td>
+                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.normalWaist}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Fit Tips */}
+            <div
+              style={{
+                border: "1px solid var(--color-outline-variant)",
+                padding: "20px",
+                backgroundColor: "rgba(44, 44, 44, 0.02)",
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--color-ruby)",
+                  marginBottom: "12px",
+                  marginTop: 0,
+                }}
+              >
+                Designer Fit Tips:
+              </h4>
+              <ul
+                style={{
+                  paddingLeft: "16px",
+                  margin: 0,
+                  fontSize: "12px",
+                  lineHeight: "1.7",
+                  color: "var(--color-charcoal)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <li><strong>SKIRT IS DESIGNED TO SIT EXACTLY</strong>, starting precisely at your upper waist.</li>
+                <li><strong>'NORMAL WAIST' IS INCLUDED</strong> so you can easily reference your standard sizing.</li>
+                <li><strong>PRIORITIZE YOUR UPPER WAIST</strong>, prioritize its exact Upper Waist measurement.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
