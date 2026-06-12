@@ -1,13 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { PRODUCTS } from "../data/products";
+import { useState, useEffect } from "react";
+import { PRODUCTS, Product } from "../data/products";
 import { useCart } from "@/context/CartContext";
+import api from "@/lib/api";
+
+const mapBackendProduct = (prod: any): Product => ({
+  id: prod.id,
+  title: prod.title,
+  price: Number(prod.basePrice || prod.price || 0),
+  category: prod.category,
+  description: prod.description,
+  images: prod.images ? prod.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
+  sizes: prod.variants && prod.variants.length > 0 ? Array.from(new Set(prod.variants.map((v: any) => v.size))) as string[] : (prod.sizes || []),
+  details: prod.details || ["Premium handcrafted fabric", "Made in India"],
+});
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
   const { cartItems, toggleCart } = useCart();
+
+  useEffect(() => {
+    api.get("/products")
+      .then((res: any) => {
+        const productList = res.data || [];
+        if (productList.length > 0) {
+          setProducts(productList.map(mapBackendProduct));
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend products fetch failed, using fallback static catalog.", err);
+      });
+  }, []);
+
+  const bestsellerProducts = products.filter((p) => p.category.toLowerCase() !== "tops");
+  const topsProducts = products.filter((p) => p.category.toLowerCase() === "tops");
 
   // Custom staggered/rotated collage layout details for each product
   const collageStyles = [
@@ -418,7 +447,7 @@ export default function Home() {
           </div>
 
           <div className="signature-grid">
-            {PRODUCTS.map((product) => {
+            {bestsellerProducts.map((product) => {
               const isHovered = hoveredProduct === product.id;
               // If hovered, show 2nd image. Otherwise show 1st image.
               const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
@@ -567,6 +596,202 @@ export default function Home() {
               );
             })}
           </div>
+
+          {/* ════════ TOPS CATEGORY SECTION ════════ */}
+          <div
+            style={{
+              marginTop: "80px",
+              marginBottom: "48px",
+              borderTop: "1px solid var(--color-outline-variant)",
+              paddingTop: "60px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--color-charcoal)",
+              }}
+            >
+              Tops
+            </span>
+          </div>
+
+          {topsProducts.length === 0 ? (
+            <div
+              style={{
+                padding: "60px 20px",
+                textAlign: "center",
+                border: "1px dashed var(--color-outline-variant)",
+                backgroundColor: "var(--color-surface-container-lowest)",
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "16px",
+                  color: "var(--color-on-surface-variant)",
+                  margin: 0,
+                  fontStyle: "italic",
+                }}
+              >
+                No signature tops available in the current drop. Stay tuned!
+              </p>
+            </div>
+          ) : (
+            <div className="signature-grid">
+              {topsProducts.map((product) => {
+                const isHovered = hoveredProduct === product.id;
+                // If hovered, show 2nd image. Otherwise show 1st image.
+                const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
+
+                return (
+                  <div
+                    key={product.id}
+                    style={{
+                      backgroundColor: "var(--color-surface-container-lowest)",
+                      border: "1px solid var(--color-outline-variant)",
+                      position: "relative",
+                      transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                    onMouseEnter={() => setHoveredProduct(product.id)}
+                    onMouseLeave={() => setHoveredProduct(null)}
+                  >
+                    <Link
+                      href={`/products/${product.id}`}
+                      style={{
+                        display: "block",
+                        aspectRatio: "3/4",
+                        overflow: "hidden",
+                        position: "relative",
+                        background: "#eaeaea",
+                      }}
+                    >
+                      <img
+                        src={currentImage}
+                        alt={product.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)",
+                          transform: isHovered ? "scale(1.05)" : "scale(1)",
+                        }}
+                      />
+                      
+                      {/* Size tag indicator on hover */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "0",
+                          left: "0",
+                          right: "0",
+                          backgroundColor: "rgba(252, 249, 248, 0.9)",
+                          backdropFilter: "blur(4px)",
+                          padding: "10px",
+                          textAlign: "center",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          letterSpacing: "0.05em",
+                          color: "var(--color-charcoal)",
+                          transform: isHovered ? "translateY(0)" : "translateY(100%)",
+                          transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                          borderTop: "1px solid var(--color-outline-variant)",
+                        }}
+                      >
+                        Available in: {product.sizes.join(", ")}
+                      </div>
+                    </Link>
+
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", flex: 1 }}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          letterSpacing: "0.15em",
+                          textTransform: "uppercase",
+                          color: "var(--color-ruby)",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {product.category}
+                      </span>
+                      <h3
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: "18px",
+                          fontWeight: 600,
+                          color: "var(--color-charcoal)",
+                          marginBottom: "12px",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        <Link
+                          href={`/products/${product.id}`}
+                          style={{
+                            color: "inherit",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {product.title}
+                        </Link>
+                      </h3>
+                      
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginTop: "auto",
+                          paddingTop: "16px",
+                          borderTop: "1px solid var(--color-outline-variant)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: "17px",
+                            fontWeight: 700,
+                            color: "var(--color-charcoal)",
+                          }}
+                        >
+                          ₹{product.price.toLocaleString("en-IN")}
+                        </span>
+                        <Link
+                          href={`/products/${product.id}`}
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            color: "var(--color-charcoal)",
+                            textDecoration: "none",
+                            borderBottom: "1px solid var(--color-charcoal)",
+                            paddingBottom: "2px",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--color-ruby)";
+                            e.currentTarget.style.borderBottomColor = "var(--color-ruby)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "var(--color-charcoal)";
+                            e.currentTarget.style.borderBottomColor = "var(--color-charcoal)";
+                          }}
+                        >
+                          View Details
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

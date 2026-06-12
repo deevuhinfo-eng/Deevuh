@@ -264,6 +264,7 @@ export default function AdminProductsPage() {
                 style={{ appearance: "none" }}
               >
                 <option value="Coordset">Coordset</option>
+                <option value="Tops">Tops</option>
                 <option value="Casual Luxury">Casual Luxury</option>
                 <option value="Traditional Luxury">Traditional Luxury</option>
                 <option value="Separates">Separates</option>
