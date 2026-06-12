@@ -515,6 +515,10 @@ export default function CheckoutPage() {
                   <span style={{ color: 'var(--color-on-surface-variant)' }}>Subtotal</span>
                   <span>₹{cartTotal.toLocaleString('en-IN')}</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-on-surface-variant)' }}>Shipping Charges</span>
+                  <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Free</span>
+                </div>
                 {couponDiscount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--color-success)' }}>Coupon Discount</span>

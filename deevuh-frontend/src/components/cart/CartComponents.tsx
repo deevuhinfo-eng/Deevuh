@@ -137,6 +137,11 @@ export function CartSummary({ subtotal, couponDiscount = 0, couponCode }: CartSu
           <span>₹{subtotal.toLocaleString('en-IN')}</span>
         </div>
 
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '4px' }}>
+          <span style={{ color: 'var(--color-on-surface-variant)' }}>Shipping Charges</span>
+          <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Free</span>
+        </div>
+
         {couponDiscount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
             <span style={{ color: 'var(--color-success)' }}>
