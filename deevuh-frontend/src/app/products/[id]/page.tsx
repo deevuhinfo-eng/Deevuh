@@ -463,7 +463,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                     Select Size
                   </span>
-                  {product.id === "baby-blue-coordset" && (
+                  {["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit"].includes(product.id) && (
                     <button
                       onClick={() => setShowSizeGuide(true)}
                       style={{
@@ -866,7 +866,7 @@ export default function ProductDetailPage({ params }: PageProps) {
         </div>
       </footer>
 
-      {showSizeGuide && product.id === "baby-blue-coordset" && (
+      {showSizeGuide && ["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit"].includes(product.id) && (
         <div
           style={{
             position: "fixed",
@@ -893,6 +893,8 @@ export default function ProductDetailPage({ params }: PageProps) {
               display: "flex",
               flexDirection: "column",
               gap: "24px",
+              maxHeight: "90vh",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -910,6 +912,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                 cursor: "pointer",
                 padding: "4px",
                 lineHeight: 1,
+                zIndex: 10,
               }}
             >
               ×
@@ -940,7 +943,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   margin: "0 0 4px 0",
                 }}
               >
-                Vatavaran Co-ord Set
+                {product.title}
               </p>
               <p
                 style={{
@@ -956,81 +959,189 @@ export default function ProductDetailPage({ params }: PageProps) {
               </p>
             </div>
 
-            {/* Table */}
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "12px",
-                  textAlign: "center",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: "#582f34", color: "var(--color-cream)" }}>
-                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Size</th>
-                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Bust (Top)</th>
-                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>High Waist (Skirt Start)</th>
-                    <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Normal Waist (Reference)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { size: "XS", bust: "30\"", highWaist: "26\"", normalWaist: "28\"" },
-                    { size: "S", bust: "32\"", highWaist: "28\"", normalWaist: "30\"" },
-                    { size: "M", bust: "34\"", highWaist: "30\"", normalWaist: "32\"" },
-                    { size: "L", bust: "36\"", highWaist: "34\"", normalWaist: "36\"" },
-                  ].map((row) => (
-                    <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
-                      <td style={{ padding: "12px 8px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
-                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
-                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.highWaist}</td>
-                      <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.normalWaist}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {product.id === "baby-blue-coordset" ? (
+              <>
+                {/* Table */}
+                <div style={{ overflowX: "auto" }}>
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: "12px",
+                      textAlign: "center",
+                      border: "1px solid var(--color-outline-variant)",
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: "#582f34", color: "var(--color-cream)" }}>
+                        <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Size</th>
+                        <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Bust (Top)</th>
+                        <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>High Waist (Skirt Start)</th>
+                        <th style={{ padding: "12px 8px", fontWeight: 700, fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Normal Waist (Reference)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { size: "XS", bust: "30\"", highWaist: "26\"", normalWaist: "28\"" },
+                        { size: "S", bust: "32\"", highWaist: "28\"", normalWaist: "30\"" },
+                        { size: "M", bust: "34\"", highWaist: "30\"", normalWaist: "32\"" },
+                        { size: "L", bust: "36\"", highWaist: "34\"", normalWaist: "36\"" },
+                      ].map((row) => (
+                        <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                          <td style={{ padding: "12px 8px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                          <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
+                          <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.highWaist}</td>
+                          <td style={{ padding: "12px 8px", border: "1px solid var(--color-outline-variant)" }}>{row.normalWaist}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Fit Tips */}
-            <div
-              style={{
-                border: "1px solid var(--color-outline-variant)",
-                padding: "20px",
-                backgroundColor: "rgba(44, 44, 44, 0.02)",
-              }}
-            >
-              <h4
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--color-ruby)",
-                  marginBottom: "12px",
-                  marginTop: 0,
-                }}
-              >
-                Designer Fit Tips:
-              </h4>
-              <ul
-                style={{
-                  paddingLeft: "16px",
-                  margin: 0,
-                  fontSize: "12px",
-                  lineHeight: "1.7",
-                  color: "var(--color-charcoal)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <li><strong>SKIRT IS DESIGNED TO SIT EXACTLY</strong>, starting precisely at your upper waist.</li>
-                <li><strong>'NORMAL WAIST' IS INCLUDED</strong> so you can easily reference your standard sizing.</li>
-                <li><strong>PRIORITIZE YOUR UPPER WAIST</strong>, prioritize its exact Upper Waist measurement.</li>
-              </ul>
-            </div>
+                {/* Fit Tips */}
+                <div
+                  style={{
+                    border: "1px solid var(--color-outline-variant)",
+                    padding: "20px",
+                    backgroundColor: "rgba(44, 44, 44, 0.02)",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--color-ruby)",
+                      marginBottom: "12px",
+                      marginTop: 0,
+                    }}
+                  >
+                    Designer Fit Tips:
+                  </h4>
+                  <ul
+                    style={{
+                      paddingLeft: "16px",
+                      margin: 0,
+                      fontSize: "12px",
+                      lineHeight: "1.7",
+                      color: "var(--color-charcoal)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    <li><strong>SKIRT IS DESIGNED TO SIT EXACTLY</strong>, starting precisely at your upper waist.</li>
+                    <li><strong>'NORMAL WAIST' IS INCLUDED</strong> so you can easily reference your standard sizing.</li>
+                    <li><strong>PRIORITIZE YOUR UPPER WAIST</strong>, prioritize its exact Upper Waist measurement.</li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                {/* 1. TOP MEASUREMENTS */}
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--color-ruby)",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    1. Co-ord Set Top Measurements
+                  </h3>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: "12px",
+                        textAlign: "center",
+                        border: "1px solid var(--color-outline-variant)",
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ backgroundColor: "#582f34", color: "var(--color-cream)" }}>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Size</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Top Length</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Chest (Bust)</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Waist</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { size: "XS", length: "19\"", bust: "30\"", waist: "28\"" },
+                          { size: "S", length: "20\"", bust: "32\"", waist: "30\"" },
+                          { size: "M", length: "20.5\"", bust: "34\"", waist: "32\"" },
+                          { size: "L", length: "21\"", bust: "36\"", waist: "34\"" },
+                        ].map((row) => (
+                          <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                            <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 2. PANTS MEASUREMENTS */}
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--color-ruby)",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    2. Co-ord Set Pants Measurements
+                  </h3>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: "12px",
+                        textAlign: "center",
+                        border: "1px solid var(--color-outline-variant)",
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ backgroundColor: "#582f34", color: "var(--color-cream)" }}>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Size</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Pant Waist</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Pant Hip</th>
+                          <th style={{ padding: "10px 6px", fontWeight: 700, fontSize: "9px", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px solid var(--color-outline-variant)" }}>Pant Length</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { size: "XS", waist: "26\"", hip: "34\"", length: "40\"" },
+                          { size: "S", waist: "28\"", hip: "36\"", length: "40\"" },
+                          { size: "M", waist: "30\"", hip: "38\"", length: "40\"" },
+                          { size: "L", waist: "32\"", hip: "40\"", length: "40\"" },
+                        ].map((row) => (
+                          <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                            <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.hip}</td>
+                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
