@@ -744,9 +744,33 @@ export default function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {[
-              { title: "Collection", links: ["Baby Blue Coordset", "Beige Tailored Set", "Brown Earthy Coordset", "Beige Dupatta Set"] },
-              { title: "Story", links: ["Our Philosophy", "Artisanal Cooperatives", "Sartorial Calibrations", "Carbon Neutrality"] },
-              { title: "Customer Service", links: ["Contact Support", "Dispatches & Shipping", "Sizing Calibrator", "Exchange Protocol"] },
+              {
+                title: "Collection",
+                links: [
+                  { label: "The Vatavaran Coordset", href: "/products/baby-blue-coordset" },
+                  { label: "The Korean Coordset", href: "/products/beige-outfit" },
+                  { label: "The Mocha Brown Coordset", href: "/products/brown-coordset" },
+                  { label: "The Rani Coordset", href: "/products/dupatta-beige-outfit" },
+                ],
+              },
+              {
+                title: "Story",
+                links: [
+                  { label: "Our Philosophy", href: "/#our-story-section" },
+                  { label: "Artisanal Cooperatives", href: "#" },
+                  { label: "Sartorial Calibrations", href: "#" },
+                  { label: "Carbon Neutrality", href: "#" },
+                ],
+              },
+              {
+                title: "Customer Service",
+                links: [
+                  { label: "Contact Support", href: "#" },
+                  { label: "Dispatches & Shipping", href: "#" },
+                  { label: "Sizing Calibrator", href: "#" },
+                  { label: "Exchange Protocol", href: "#" },
+                ],
+              },
             ].map((col) => (
               <div key={col.title}>
                 <h4
@@ -763,9 +787,9 @@ export default function ProductDetailPage({ params }: PageProps) {
                 </h4>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {col.links.map((link) => (
-                    <li key={link} style={{ marginBottom: "12px" }}>
+                    <li key={link.label} style={{ marginBottom: "12px" }}>
                       <Link
-                        href="#"
+                        href={link.href}
                         style={{
                           fontSize: "13px",
                           color: "rgba(253, 240, 213, 0.4)",
@@ -775,7 +799,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                         onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-cream)")}
                         onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(253, 240, 213, 0.4)")}
                       >
-                        {link}
+                        {link.label}
                       </Link>
                     </li>
                   ))}
