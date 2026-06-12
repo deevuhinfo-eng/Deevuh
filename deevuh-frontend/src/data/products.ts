@@ -73,10 +73,10 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "brown-coordset",
-    title: "Brown Earthy Coordset",
+    title: "The Mocha Brown Coordset",
     price: 2199,
     category: "Coordset",
-    description: "Deep earthy tones meet modern relaxed tailoring. This premium brown coordset features detailed utility pockets, elegant cuff finishes, and a comfortable yet sharp fit suitable for year-round styling. The mid-weight textured fabric is exceptionally soft and holds its structured shape beautifully.",
+    description: "For the woman who walks into a room and owns it.\n\nTailored, polished, and effortlessly chic, our Mocha Co-ord Set is designed for the modern corporate baddie who loves power dressing without sacrificing comfort. The rich mocha brown hue brings timeless sophistication, while the structured silhouette creates a look that's both confident and elegant.\n\nThe statement double-zipper top lets you style it your way—zipped up for a sleek office look or adjusted to create different necklines and moods. Paired with flattering bootcut pants, this set is made to take you from morning meetings to after-work plans with ease.\n\nCrafted in premium Banana Crepe fabric, it offers a beautiful fall, lightweight feel, and breathable comfort for all-day wear.\n\n✨ Because dressing for success should feel just as good as it looks. Powerful, versatile, and effortlessly chic—the set you'll keep reaching for on days when you mean business.",
     images: [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114670/deevuh/products/brown%20coordsets/1st%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114685/deevuh/products/brown%20coordsets/2nd%20picture.jpg.jpg",
@@ -88,11 +88,15 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     details: [
-      "Premium textured mid-weight weave",
-      "Deep rich chocolate brown hue",
-      "Comfort-fit waistband with functional drawcords",
-      "Functional breast pockets with custom button details",
-      "Made sustainably in India"
+      "Two-piece co-ord set in rich mocha brown",
+      "Versatile double-zipper top styleable in multiple ways",
+      "Flattering high-waisted bootcut pants",
+      "Lightweight & breathable premium Banana Crepe fabric",
+      "Minimal stretch for a structured tailored silhouette",
+      "Perfect for office wear, work meetings, coffee runs & elevated everyday styling",
+      "Proudly made in India",
+      "Gentle hand wash recommended · Avoid frequent machine washing",
+      "Iron on low to medium heat · Do not use high heat directly on fabric"
     ]
   },
   {
