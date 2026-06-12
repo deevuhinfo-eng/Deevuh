@@ -77,7 +77,7 @@ export default function ProductDetailPage({ params }: PageProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"details" | "shipping" | "artisans">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "shipping">("details");
 
   const { addToCart, toggleCart, cartItems } = useCart();
 
@@ -509,7 +509,6 @@ export default function ProductDetailPage({ params }: PageProps) {
                 {[
                   { id: "details", label: "Highlights" },
                   { id: "shipping", label: "Dispatches" },
-                  { id: "artisans", label: "Artisanship" },
                 ].map((tab) => {
                   const isActive = activeTab === tab.id;
                   return (
@@ -560,11 +559,6 @@ export default function ProductDetailPage({ params }: PageProps) {
                       Your outfit will reach you within 7–10 days, and trust us, it’ll be worth the wait. ✨
                     </p>
                   </div>
-                )}
-                {activeTab === "artisans" && (
-                  <p style={{ fontSize: "14px", lineHeight: "1.8", color: "var(--color-on-surface-variant)", margin: 0 }}>
-                    This piece is crafted in partnership with handloom silk weaver guilds of Madhya Pradesh and Uttar Pradesh. Every purchase supports direct, fair-trade wages for 14 independent artisanal families, helping sustain slow heritage craft in India.
-                  </p>
                 )}
               </div>
             </div>
