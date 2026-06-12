@@ -336,6 +336,21 @@ h4 { font-size: 20px; font-weight: 500; line-height: 1.4; }
   align-items: center;
   width: 100%;
 }
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--color-charcoal);
+  margin-bottom: 20px;
+}
+.hero-view-collection-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  width: 100%;
+}
 @media (max-width: 992px) {
   .hero-grid {
     grid-template-columns: 1fr;
@@ -348,9 +363,13 @@ h4 { font-size: 20px; font-weight: 500; line-height: 1.4; }
     align-items: center;
     padding-right: 0 !important;
   }
-  .hero-grid h1 {
-    font-size: 38px !important;
-    margin-bottom: 24px !important;
+  .hero-title {
+    font-size: 26px;
+    margin-bottom: 16px;
+  }
+  .hero-view-collection-container {
+    justify-content: center;
+    margin-top: 8px;
   }
 }
 

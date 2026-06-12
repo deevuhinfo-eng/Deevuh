@@ -45,8 +45,7 @@ export default function Home() {
     },
   ];
 
-  // Use a beautiful full image from the Combo folder for philosophy section
-  const philosophyImage = "/products/Combo/DSC_0079.jpg";
+
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-surface)" }}>
@@ -90,7 +89,7 @@ export default function Home() {
                 item === "Collection"
                   ? "#collection-section"
                   : item === "Our Story"
-                  ? "#philosophy-section"
+                  ? "#footer-section"
                   : "#footer-section"
               }
               style={{
@@ -204,74 +203,36 @@ export default function Home() {
           }}
         >
           <div style={{ paddingRight: "10px", zIndex: 10 }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "50px",
-                fontWeight: 600,
-                lineHeight: 1.15,
-                letterSpacing: "-0.02em",
-                color: "var(--color-charcoal)",
-                marginBottom: "44px",
-              }}
-            >
+            <h1 className="hero-title">
               A{" "}
-              <span style={{ color: "var(--color-ruby)", fontStyle: "italic" }}>Deevuh</span>
+              <span style={{ color: "var(--color-ruby)" }}>Deevuh</span>
               {" "}gets what she wants.
             </h1>
 
-
-            <div style={{ display: "flex", gap: "16px" }}>
+            <div className="hero-view-collection-container">
               <Link
                 href="#collection-section"
-                className="btn btn-primary btn-lg"
                 style={{
                   textDecoration: "none",
-                  backgroundColor: "var(--color-ruby)",
-                  color: "var(--color-cream)",
-                  padding: "16px 36px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  borderRadius: "0px",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "inline-block",
-                  transition: "opacity 0.2s"
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-              >
-                View Collection
-              </Link>
-              <Link
-                href="#philosophy-section"
-                className="btn btn-secondary btn-lg"
-                style={{
-                  textDecoration: "none",
-                  backgroundColor: "transparent",
                   color: "var(--color-charcoal)",
-                  padding: "16px 36px",
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontWeight: 600,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  borderRadius: "0px",
-                  border: "1px solid var(--color-charcoal)",
-                  display: "inline-block",
-                  transition: "all 0.3s"
+                  borderBottom: "1px solid var(--color-charcoal)",
+                  paddingBottom: "2px",
+                  transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-charcoal)";
-                  e.currentTarget.style.color = "var(--color-cream)";
+                  e.currentTarget.style.color = "var(--color-ruby)";
+                  e.currentTarget.style.borderBottomColor = "var(--color-ruby)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
                   e.currentTarget.style.color = "var(--color-charcoal)";
+                  e.currentTarget.style.borderBottomColor = "var(--color-charcoal)";
                 }}
               >
-                Our Philosophy
+                View Collection →
               </Link>
             </div>
           </div>
@@ -624,107 +585,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ════════ EDITORIAL PHILOSOPHY ════════ */}
-      <section
-        id="philosophy-section"
-        style={{
-          backgroundColor: "var(--color-cream)",
-          position: "relative",
-          overflow: "hidden",
-          borderBottom: "1px solid var(--color-outline-variant)",
-        }}
-      >
-        <div
-          className="container philosophy-grid"
-          style={{
-            paddingTop: "0px",
-            paddingBottom: "0px",
-          }}
-        >
-          <div className="philosophy-text-col" style={{ padding: "80px 80px 80px 0" }}>
-            <span
-              className="label-lg"
-              style={{
-                color: "var(--color-ruby)",
-                marginBottom: "16px",
-                display: "block",
-                fontWeight: 600,
-                letterSpacing: "0.15em",
-              }}
-            >
-              OUR MANIFESTO
-            </span>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "40px",
-                fontWeight: 600,
-                lineHeight: 1.2,
-                color: "var(--color-charcoal)",
-                marginBottom: "28px",
-              }}
-            >
-              Crafted with Rigorous Intention
-            </h2>
-            <p
-              style={{
-                fontSize: "16px",
-                lineHeight: 1.8,
-                color: "var(--color-on-surface-variant)",
-                marginBottom: "24px",
-              }}
-            >
-              DEEVUH was born from a singular vision: to dismantle the noise of hyper-fast fashion and return to a state of absolute garment integrity. We do not design hundreds of disposable pieces. We design four complete, beautiful outfits.
-            </p>
-            <p
-              style={{
-                fontSize: "16px",
-                lineHeight: 1.8,
-                color: "var(--color-on-surface-variant)",
-                marginBottom: "40px",
-              }}
-            >
-              Our textiles are sourced directly from handloom weaver co-operatives. Every seam is checked, every button sewn by hand, and every fit calibrated to feel like second skin.
-            </p>
-            <div style={{ display: "inline-block" }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "18px",
-                  fontWeight: 600,
-                  color: "var(--color-ruby)",
-                  fontStyle: "italic",
-                }}
-              >
-                No compromise. Just pure form.
-              </span>
-            </div>
-          </div>
-          <div
-            className="philosophy-image-col"
-            style={{
-              height: "100%",
-              overflow: "hidden",
-              borderLeft: "1px solid var(--color-outline-variant)",
-              alignSelf: "stretch",
-              position: "relative",
-              minHeight: "560px",
-            }}
-          >
-            <img
-              src={philosophyImage}
-              alt="Artisanal tailor working on DEEVUH garments"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                position: "absolute",
-                inset: 0,
-              }}
-            />
-          </div>
-        </div>
-      </section>
 
       {/* ════════ NEWSLETTER ════════ */}
       <section
