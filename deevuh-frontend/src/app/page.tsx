@@ -384,52 +384,20 @@ export default function Home() {
         <div className="container">
           <div
             style={{
-              textAlign: "center",
-              marginBottom: "72px",
+              marginBottom: "48px",
             }}
           >
             <span
-              className="label-lg"
               style={{
-                color: "var(--color-ruby)",
-                marginBottom: "12px",
-                display: "block",
+                fontSize: "12px",
                 fontWeight: 600,
-                letterSpacing: "0.15em",
-              }}
-            >
-              THE FOUR PIECES
-            </span>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "44px",
-                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
                 color: "var(--color-charcoal)",
-                marginBottom: "20px",
               }}
             >
-              The Signature Capsule
-            </h2>
-            <div
-              style={{
-                width: "60px",
-                height: "1px",
-                backgroundColor: "var(--color-ruby)",
-                margin: "0 auto 24px auto",
-              }}
-            />
-            <p
-              style={{
-                fontSize: "16px",
-                color: "var(--color-on-surface-variant)",
-                maxWidth: "520px",
-                margin: "0 auto",
-                lineHeight: 1.8,
-              }}
-            >
-              Discover our exclusive four-outfit release. Painstakingly tailored in limited numbers, using fine fabrics and rich textures.
-            </p>
+              Bestsellers
+            </span>
           </div>
 
           <div className="signature-grid">
