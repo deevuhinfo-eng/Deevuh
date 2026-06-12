@@ -369,7 +369,7 @@ export default function ProductDetailPage({ params }: PageProps) {
             <h1
               style={{
                 fontFamily: "var(--font-serif)",
-                fontSize: "40px",
+                fontSize: "var(--product-title-size)",
                 fontWeight: 600,
                 color: "var(--color-charcoal)",
                 lineHeight: 1.2,
@@ -394,7 +394,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                 <span
                   style={{
                     fontFamily: "var(--font-serif)",
-                    fontSize: "26px",
+                    fontSize: "var(--product-price-size)",
                     fontWeight: 700,
                     color: "var(--color-charcoal)",
                   }}
@@ -576,10 +576,10 @@ export default function ProductDetailPage({ params }: PageProps) {
         }}
       >
         <div className="container">
-          <h2
+           <h2
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "30px",
+              fontSize: "var(--related-title-size)",
               fontWeight: 600,
               color: "var(--color-charcoal)",
               marginBottom: "40px",

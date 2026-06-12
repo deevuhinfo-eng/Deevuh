@@ -611,7 +611,7 @@ export default function Home() {
           <h2
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "22px",
+              fontSize: "var(--story-title-size)",
               fontWeight: 600,
               lineHeight: 1.4,
               color: "var(--color-cream)",
@@ -651,6 +651,7 @@ export default function Home() {
 
       {/* ════════ NEWSLETTER ════════ */}
       <section
+        id="newsletter-section"
         className="section-gap"
         style={{
           backgroundColor: "var(--color-charcoal)",
@@ -678,7 +679,7 @@ export default function Home() {
           <h2
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "38px",
+              fontSize: "var(--newsletter-title-size)",
               fontWeight: 600,
               color: "var(--color-cream)",
               marginBottom: "20px",
