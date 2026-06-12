@@ -50,10 +50,10 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "beige-outfit",
-    title: "Beige Tailored Set",
+    title: "The Korean Coordset",
     price: 2699,
-    category: "Casual Luxury",
-    description: "An understated and minimalist beige outfit, tailored for maximum comfort and an effortless editorial aesthetic. Features a clean drape, structured lines, and ultra-soft premium fabric. Perfectly styled as a monochrome statement or split as versatile separates for high-end casual wear.",
+    category: "Coordset",
+    description: "Minimal effort. Maximum impact.\n\nDesigned for the girls who love clean silhouettes and elevated basics, our Korean Co-ord Set brings together modern tailoring and effortless sophistication. Featuring an asymmetrical waistcoat and relaxed flared Korean pants, this set strikes the perfect balance between structured and chic.\n\nThe asymmetrical cut adds a contemporary edge, creating a silhouette that feels unique yet timeless. Paired with flowy Korean-style pants that move beautifully with every step, this outfit is made for days when you want to look polished without trying too hard.\n\nCrafted in premium Banana Crepe fabric, it offers a lightweight feel, breathable comfort, and an elegant drape that flatters every movement.\n\n✨ For the days when you want your outfit to speak before you do. Modern, refined, and effortlessly stylish—this is the kind of set you'll keep reaching for, season after season.",
     images: [
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114588/deevuh/products/beige%20outfit/1%20picture.jpg.jpg",
       "https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114602/deevuh/products/beige%20outfit/2%20picture.jpg.jpg",
@@ -64,11 +64,17 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     details: [
-      "100% premium soft-touch luxury viscose-blend",
-      "Structured dropped shoulders with tailored sleeves",
-      "Clean hem finishes with subtle side slits",
-      "Designed for a relaxed yet editorial silhouette",
-      "Handcrafted locally in India"
+      "Two-piece co-ord set: Asymmetrical Waistcoat & Flared Pants",
+      "Statement asymmetrical waistcoat with button closures",
+      "Relaxed flared Korean-style pants",
+      "Modern, tailored minimalist silhouette",
+      "Lightweight and breathable Banana Crepe fabric",
+      "Minimal stretch with a structured fall",
+      "Easy to dress up or down",
+      "Perfect for workdays, brunches, travel, dinner plans, and elevated everyday wear",
+      "Proudly crafted in India",
+      "Gentle hand wash recommended · Avoid frequent machine washing",
+      "Iron on low to medium heat · Do not use high heat directly on fabric"
     ]
   },
   {
