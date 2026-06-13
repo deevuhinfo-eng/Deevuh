@@ -49,18 +49,18 @@ export const getProduct = async (req: Request, res: Response): Promise<void> => 
         include: { variants: true, images: true },
       });
     } else {
-      // Map frontend slug to database title
-      const slugMap: Record<string, string> = {
-        'baby-blue-coordset': 'Baby Blue Coordset',
-        'beige-outfit': 'Beige Tailored Set',
-        'brown-coordset': 'Brown Earthy Coordset',
-        'dupatta-beige-outfit': 'Beige Dupatta Set',
+      // Map frontend slug to database title (supports both new updated titles and old seeded titles)
+      const slugMap: Record<string, string[]> = {
+        'baby-blue-coordset': ['The Vatavaran Coordset', 'Baby Blue Coordset'],
+        'beige-outfit': ['The Korean Coordset', 'Beige Tailored Set'],
+        'brown-coordset': ['The Mocha Brown Coordset', 'Brown Earthy Coordset'],
+        'dupatta-beige-outfit': ['The Rani Coordset', 'Beige Dupatta Set'],
       };
 
-      const title = slugMap[idOrSlug];
-      if (title) {
+      const titles = slugMap[idOrSlug];
+      if (titles) {
         product = await prisma.product.findFirst({
-          where: { title },
+          where: { title: { in: titles } },
           include: { variants: true, images: true },
         });
       }
