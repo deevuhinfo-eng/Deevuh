@@ -89,6 +89,17 @@ export const api = {
     return handleResponse<T>(res, path, options);
   },
 
+  patch: async <T = any>(path: string, data?: any): Promise<T> => {
+    const options = {
+      method: 'PATCH',
+      headers: getDefaultHeaders(),
+      credentials: 'include' as RequestCredentials,
+      body: data ? JSON.stringify(data) : undefined,
+    };
+    const res = await fetch(`${API_BASE}${path}`, options);
+    return handleResponse<T>(res, path, options);
+  },
+
   /** Wishlist uses parameterized path */
   wishlist: {
     add: (productId: string) => api.post(`/wishlist/${productId}`),
