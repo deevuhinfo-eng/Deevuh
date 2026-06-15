@@ -20,6 +20,7 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     '/api/checkout/webhooks/payu',
     '/api/payments/webhooks/payu',
     '/api/auth/reset-password',
+    '/api/auth/forgot-password',
     '/api/checkout/success',
     '/api/checkout/failure',
   ];
