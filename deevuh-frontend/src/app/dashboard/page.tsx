@@ -236,19 +236,36 @@ export default function UserDashboard() {
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontSize: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
               color: "var(--color-charcoal)",
               position: "relative",
               marginLeft: "10px"
             }}
           >
-            ◇
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
             {cartItems.length > 0 && (
               <span
                 style={{
                   position: "absolute",
-                  top: "-6px",
-                  right: "-8px",
+                  top: "-4px",
+                  right: "-6px",
                   backgroundColor: "var(--color-ruby)",
                   color: "white",
                   fontSize: "9px",
@@ -648,9 +665,33 @@ export default function UserDashboard() {
             </div>
 
             {[
-              { title: "Collection", links: ["Baby Blue Coordset", "Beige Tailored Set", "Brown Earthy Coordset", "Beige Dupatta Set"] },
-              { title: "Story", links: ["Our Philosophy", "Artisanal Cooperatives", "Sartorial Calibrations", "Carbon Neutrality"] },
-              { title: "Customer Service", links: ["Contact Support", "Dispatches & Shipping", "Sizing Calibrator", "Exchange Protocol"] },
+              {
+                title: "Collection",
+                links: [
+                  { label: "The Vatavaran Coordset", href: "/products/baby-blue-coordset" },
+                  { label: "The Korean Coordset", href: "/products/beige-outfit" },
+                  { label: "The Mocha Brown Coordset", href: "/products/brown-coordset" },
+                  { label: "The Rani Coordset", href: "/products/dupatta-beige-outfit" },
+                ],
+              },
+              {
+                title: "Story",
+                links: [
+                  { label: "Our Philosophy", href: "/#our-story-section" },
+                  { label: "Artisanal Cooperatives", href: "#" },
+                  { label: "Sartorial Calibrations", href: "#" },
+                  { label: "Carbon Neutrality", href: "#" },
+                ],
+              },
+              {
+                title: "Customer Service",
+                links: [
+                  { label: "Contact Support", href: "#" },
+                  { label: "Dispatches & Shipping", href: "#" },
+                  { label: "Sizing Calibrator", href: "#" },
+                  { label: "Exchange Protocol", href: "#" },
+                ],
+              },
             ].map((col) => (
               <div key={col.title}>
                 <h4
@@ -667,9 +708,9 @@ export default function UserDashboard() {
                 </h4>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {col.links.map((link) => (
-                    <li key={link} style={{ marginBottom: "12px" }}>
+                    <li key={link.label} style={{ marginBottom: "12px" }}>
                       <Link
-                        href="#"
+                        href={link.href}
                         style={{
                           fontSize: "13px",
                           color: "rgba(253, 240, 213, 0.4)",
@@ -677,7 +718,7 @@ export default function UserDashboard() {
                           transition: "color 0.2s",
                         }}
                       >
-                        {link}
+                        {link.label}
                       </Link>
                     </li>
                   ))}

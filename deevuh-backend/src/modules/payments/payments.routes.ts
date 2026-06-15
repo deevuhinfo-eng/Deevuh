@@ -110,9 +110,8 @@ router.post(
         couponId = coupon.id;
       }
 
-      const afterDiscount = totalAmount - discountAmount;
-      const gstAmount = calculateGST(afterDiscount);
-      const finalAmount = Math.round((afterDiscount + gstAmount) * 100) / 100;
+      const finalAmount = Math.round((totalAmount - discountAmount) * 100) / 100;
+      const gstAmount = calculateGST(finalAmount);
       const txnid = `DEEVUH_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
 
       // SINGLE ATOMIC TRANSACTION:

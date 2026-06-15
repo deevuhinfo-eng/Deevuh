@@ -170,10 +170,7 @@ export default function CheckoutPage() {
   };
 
   // Pricing calculations
-  const GST_RATE = 0.18;
-  const afterDiscount = cartTotal - couponDiscount;
-  const gst = Math.round(afterDiscount * GST_RATE * 100) / 100;
-  const total = Math.round((afterDiscount + gst) * 100) / 100;
+  const total = cartTotal - couponDiscount;
 
   const borderStyle = '1px solid var(--color-outline-variant)';
 
@@ -518,16 +515,16 @@ export default function CheckoutPage() {
                   <span style={{ color: 'var(--color-on-surface-variant)' }}>Subtotal</span>
                   <span>₹{cartTotal.toLocaleString('en-IN')}</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-on-surface-variant)' }}>Shipping Charges</span>
+                  <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Free</span>
+                </div>
                 {couponDiscount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--color-success)' }}>Coupon Discount</span>
                     <span style={{ color: 'var(--color-success)' }}>−₹{couponDiscount.toLocaleString('en-IN')}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-on-surface-variant)' }}>GST (18%)</span>
-                  <span>₹{gst.toLocaleString('en-IN')}</span>
-                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '12px', marginTop: '4px' }}>
                   <span style={{ fontWeight: 700 }}>Total amount</span>
                   <span style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--color-charcoal)' }}>

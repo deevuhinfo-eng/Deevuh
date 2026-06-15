@@ -125,10 +125,7 @@ interface CartSummaryProps {
 }
 
 export function CartSummary({ subtotal, couponDiscount = 0, couponCode }: CartSummaryProps) {
-  const GST_RATE = 0.18;
-  const afterDiscount = subtotal - couponDiscount;
-  const gst = Math.round(afterDiscount * GST_RATE * 100) / 100;
-  const total = Math.round((afterDiscount + gst) * 100) / 100;
+  const total = subtotal - couponDiscount;
 
   return (
     <div className="card-elevated" style={{ padding: '24px' }}>
@@ -138,6 +135,11 @@ export function CartSummary({ subtotal, couponDiscount = 0, couponCode }: CartSu
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
           <span style={{ color: 'var(--color-on-surface-variant)' }}>Subtotal</span>
           <span>₹{subtotal.toLocaleString('en-IN')}</span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '4px' }}>
+          <span style={{ color: 'var(--color-on-surface-variant)' }}>Shipping Charges</span>
+          <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Free</span>
         </div>
 
         {couponDiscount > 0 && (
@@ -150,11 +152,6 @@ export function CartSummary({ subtotal, couponDiscount = 0, couponCode }: CartSu
             </span>
           </div>
         )}
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-          <span style={{ color: 'var(--color-on-surface-variant)' }}>GST (18%)</span>
-          <span>₹{gst.toLocaleString('en-IN')}</span>
-        </div>
 
         <div style={{
           borderTop: '1px solid var(--color-outline-variant)',

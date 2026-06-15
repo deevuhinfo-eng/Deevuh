@@ -13,6 +13,7 @@ import couponRoutes from './modules/coupons/coupons.routes.js';
 import paymentRoutes from './modules/payments/payments.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import uploadRoutes from './modules/uploads/uploads.routes.js';
+import reviewsRoutes from './modules/reviews/reviews.routes.js';
 
 dotenv.config();
 
@@ -84,6 +85,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/checkout', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/reviews', reviewsRoutes);
 
 // Global error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

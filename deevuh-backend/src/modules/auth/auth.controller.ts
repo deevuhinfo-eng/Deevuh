@@ -7,7 +7,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { setAuthCookies, clearAuthCookies, logAuthEvent } from './auth.service.js';
 import { getAccessCookieOptions } from '../../utils/cookies.js';
 import { verifyGoogleToken } from './google.service.js';
-import { generateVerificationToken, sendVerificationEmail } from './email.service.js';
+import { generateVerificationToken, sendVerificationEmail, generatePasswordResetToken, sendPasswordResetEmail } from './email.service.js';
 
 const SALT_ROUNDS = 12;
 
@@ -155,9 +155,101 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 };
 
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ status: 'error', message: 'Email is required.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Return generic success to prevent user enumeration
+      res.status(200).json({
+        status: 'success',
+        message: 'If this email is registered, we have sent a password reset link.'
+      });
+      return;
+    }
+
+    const token = await generatePasswordResetToken(user.email);
+    await sendPasswordResetEmail(user.email, token);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'If this email is registered, we have sent a password reset link.'
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
-  // Disabling insecure reset password for now.
-  res.status(403).json({ status: 'error', message: 'Endpoint disabled for security reasons.' });
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      res.status(400).json({ status: 'error', message: 'Token and password are required.' });
+      return;
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token: hashedToken }
+    });
+
+    if (!resetToken) {
+      res.status(400).json({ status: 'error', message: 'The password reset link is invalid or has already been used.' });
+      return;
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
+      res.status(400).json({ status: 'error', message: 'The password reset link has expired. Please request a new one.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: resetToken.email }
+    });
+
+    if (!user) {
+      res.status(400).json({ status: 'error', message: 'User not found.' });
+      return;
+    }
+
+    // Password strength check (backend validation)
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[@$!%*?&#.]/.test(password);
+    if (password.length < 8 || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Password does not meet strength requirements: minimum 8 characters, containing uppercase, lowercase, number, and special character.'
+      });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Update user password and increment tokenVersion to revoke old sessions
+    await prisma.user.update({
+      where: { email: resetToken.email },
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 }
+      }
+    });
+
+    // Delete token (single-use)
+    await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
+
+    res.status(200).json({ status: 'success', message: 'Your password has been successfully reset.' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 };
 
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {

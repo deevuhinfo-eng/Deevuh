@@ -24,6 +24,74 @@ export const generateVerificationToken = async (email: string): Promise<string> 
   return token;
 };
 
+export const generatePasswordResetToken = async (email: string): Promise<string> => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  // Remove any existing tokens for this email, then create a fresh one
+  await prisma.passwordResetToken.deleteMany({ where: { email } });
+  await prisma.passwordResetToken.create({
+    data: { email, token: hashedToken, expiresAt },
+  });
+
+  return token;
+};
+
+export const sendPasswordResetEmail = async (email: string, token: string) => {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[Email] No API key — skipping send. Reset URL: ${resetUrl}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: email,
+      subject: 'Reset your Deevuh password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="margin:0;padding:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#faf8f7;">
+            <div style="max-width:560px;margin:48px auto;background:#fff;border:1px solid #e8e0db;padding:48px 40px;">
+              <div style="text-align:center;margin-bottom:32px;">
+                <span style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#c0392b;letter-spacing:0.15em;">DEEVUH</span>
+              </div>
+              <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:600;color:#1a1a1a;margin:0 0 16px;">Reset your password</h1>
+              <p style="font-size:15px;line-height:1.7;color:#5a5a5a;margin:0 0 24px;">
+                We received a request to reset your password for your Deevuh account. Please click the button below to choose a new password.
+              </p>
+              <div style="text-align:center;margin:32px 0;">
+                <a href="${resetUrl}"
+                   style="display:inline-block;background:#c0392b;color:#fff;font-size:14px;font-weight:600;
+                          letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;
+                          padding:14px 36px;">
+                  Reset Password
+                </a>
+              </div>
+              <p style="font-size:13px;color:#999;margin:24px 0 0;text-align:center;line-height:1.6;">
+                This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+              </p>
+              <hr style="border:none;border-top:1px solid #e8e0db;margin:32px 0 24px;">
+              <p style="font-size:12px;color:#bbb;text-align:center;margin:0;">
+                © ${new Date().getFullYear()} Deevuh · 
+                <a href="https://deevuh.in" style="color:#bbb;">deevuh.in</a>
+              </p>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    console.log(`[Email] Password reset email sent to ${email}`);
+  } catch (err: any) {
+    console.error(`[Email] Failed to send password reset to ${email}:`, err.message);
+  }
+};
+
 
 export const sendVerificationEmail = async (email: string, token: string) => {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;

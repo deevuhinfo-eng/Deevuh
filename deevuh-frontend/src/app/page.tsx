@@ -1,13 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { PRODUCTS } from "../data/products";
+import { useState, useEffect } from "react";
+import { PRODUCTS, Product } from "../data/products";
 import { useCart } from "@/context/CartContext";
+import api from "@/lib/api";
+
+const mapBackendProduct = (prod: any): Product => ({
+  id: prod.id,
+  title: prod.title,
+  price: Number(prod.basePrice || prod.price || 0),
+  category: prod.category,
+  description: prod.description,
+  images: prod.images ? prod.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
+  sizes: prod.variants && prod.variants.length > 0 ? Array.from(new Set(prod.variants.map((v: any) => v.size))) as string[] : (prod.sizes || []),
+  details: prod.details || ["Premium handcrafted fabric", "Made in India"],
+});
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
   const { cartItems, toggleCart } = useCart();
+
+  useEffect(() => {
+    api.get("/products")
+      .then((res: any) => {
+        const productList = res.data || [];
+        if (productList.length > 0) {
+          setProducts(productList.map(mapBackendProduct));
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend products fetch failed, using fallback static catalog.", err);
+      });
+  }, []);
+
+  const bestsellerProducts = products.filter((p) => p.category.toLowerCase() !== "tops");
+  const topsProducts = products.filter((p) => p.category.toLowerCase() === "tops");
 
   // Custom staggered/rotated collage layout details for each product
   const collageStyles = [
@@ -45,8 +74,7 @@ export default function Home() {
     },
   ];
 
-  // Use a beautiful full image from the Combo folder for philosophy section
-  const philosophyImage = "/products/Combo/DSC_0079.jpg";
+
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-surface)" }}>
@@ -90,7 +118,7 @@ export default function Home() {
                 item === "Collection"
                   ? "#collection-section"
                   : item === "Our Story"
-                  ? "#philosophy-section"
+                  ? "#our-story-section"
                   : "#footer-section"
               }
               style={{
@@ -153,18 +181,35 @@ export default function Home() {
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontSize: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
               color: "var(--color-charcoal)",
               position: "relative",
             }}
           >
-            ◇
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
             {cartItems.length > 0 && (
               <span
                 style={{
                   position: "absolute",
-                  top: "-6px",
-                  right: "-8px",
+                  top: "-4px",
+                  right: "-6px",
                   backgroundColor: "var(--color-ruby)",
                   color: "white",
                   fontSize: "9px",
@@ -204,74 +249,36 @@ export default function Home() {
           }}
         >
           <div style={{ paddingRight: "10px", zIndex: 10 }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "50px",
-                fontWeight: 600,
-                lineHeight: 1.15,
-                letterSpacing: "-0.02em",
-                color: "var(--color-charcoal)",
-                marginBottom: "44px",
-              }}
-            >
+            <h1 className="hero-title">
               A{" "}
-              <span style={{ color: "var(--color-ruby)", fontStyle: "italic" }}>Deevuh</span>
+              <span style={{ color: "var(--color-ruby)" }}>Deevuh</span>
               {" "}gets what she wants.
             </h1>
 
-
-            <div style={{ display: "flex", gap: "16px" }}>
+            <div className="hero-view-collection-container">
               <Link
                 href="#collection-section"
-                className="btn btn-primary btn-lg"
                 style={{
                   textDecoration: "none",
-                  backgroundColor: "var(--color-ruby)",
-                  color: "var(--color-cream)",
-                  padding: "16px 36px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  borderRadius: "0px",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "inline-block",
-                  transition: "opacity 0.2s"
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-              >
-                View Collection
-              </Link>
-              <Link
-                href="#philosophy-section"
-                className="btn btn-secondary btn-lg"
-                style={{
-                  textDecoration: "none",
-                  backgroundColor: "transparent",
                   color: "var(--color-charcoal)",
-                  padding: "16px 36px",
-                  fontSize: "13px",
+                  fontSize: "11px",
                   fontWeight: 600,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  borderRadius: "0px",
-                  border: "1px solid var(--color-charcoal)",
-                  display: "inline-block",
-                  transition: "all 0.3s"
+                  borderBottom: "1px solid var(--color-charcoal)",
+                  paddingBottom: "2px",
+                  transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-charcoal)";
-                  e.currentTarget.style.color = "var(--color-cream)";
+                  e.currentTarget.style.color = "var(--color-ruby)";
+                  e.currentTarget.style.borderBottomColor = "var(--color-ruby)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
                   e.currentTarget.style.color = "var(--color-charcoal)";
+                  e.currentTarget.style.borderBottomColor = "var(--color-charcoal)";
                 }}
               >
-                Our Philosophy
+                View Collection →
               </Link>
             </div>
           </div>
@@ -423,56 +430,24 @@ export default function Home() {
         <div className="container">
           <div
             style={{
-              textAlign: "center",
-              marginBottom: "72px",
+              marginBottom: "48px",
             }}
           >
             <span
-              className="label-lg"
               style={{
-                color: "var(--color-ruby)",
-                marginBottom: "12px",
-                display: "block",
+                fontSize: "12px",
                 fontWeight: 600,
-                letterSpacing: "0.15em",
-              }}
-            >
-              THE FOUR PIECES
-            </span>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "44px",
-                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
                 color: "var(--color-charcoal)",
-                marginBottom: "20px",
               }}
             >
-              The Signature Capsule
-            </h2>
-            <div
-              style={{
-                width: "60px",
-                height: "1px",
-                backgroundColor: "var(--color-ruby)",
-                margin: "0 auto 24px auto",
-              }}
-            />
-            <p
-              style={{
-                fontSize: "16px",
-                color: "var(--color-on-surface-variant)",
-                maxWidth: "520px",
-                margin: "0 auto",
-                lineHeight: 1.8,
-              }}
-            >
-              Discover our exclusive four-outfit release. Painstakingly tailored in limited numbers, using fine fabrics and rich textures.
-            </p>
+              Bestsellers
+            </span>
           </div>
 
           <div className="signature-grid">
-            {PRODUCTS.map((product) => {
+            {bestsellerProducts.map((product) => {
               const isHovered = hoveredProduct === product.id;
               // If hovered, show 2nd image. Otherwise show 1st image.
               const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
@@ -621,113 +596,304 @@ export default function Home() {
               );
             })}
           </div>
-        </div>
-      </section>
 
-      {/* ════════ EDITORIAL PHILOSOPHY ════════ */}
-      <section
-        id="philosophy-section"
-        style={{
-          backgroundColor: "var(--color-cream)",
-          position: "relative",
-          overflow: "hidden",
-          borderBottom: "1px solid var(--color-outline-variant)",
-        }}
-      >
-        <div
-          className="container philosophy-grid"
-          style={{
-            paddingTop: "0px",
-            paddingBottom: "0px",
-          }}
-        >
-          <div className="philosophy-text-col" style={{ padding: "80px 80px 80px 0" }}>
+          {/* ════════ TOPS CATEGORY SECTION ════════ */}
+          <div
+            style={{
+              marginTop: "80px",
+              marginBottom: "48px",
+              borderTop: "1px solid var(--color-outline-variant)",
+              paddingTop: "60px",
+            }}
+          >
             <span
-              className="label-lg"
               style={{
-                color: "var(--color-ruby)",
-                marginBottom: "16px",
-                display: "block",
+                fontSize: "12px",
                 fontWeight: 600,
-                letterSpacing: "0.15em",
-              }}
-            >
-              OUR MANIFESTO
-            </span>
-            <h2
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "40px",
-                fontWeight: 600,
-                lineHeight: 1.2,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
                 color: "var(--color-charcoal)",
-                marginBottom: "28px",
               }}
             >
-              Crafted with Rigorous Intention
-            </h2>
-            <p
+              Tops
+            </span>
+          </div>
+
+          {topsProducts.length === 0 ? (
+            <div
               style={{
-                fontSize: "16px",
-                lineHeight: 1.8,
-                color: "var(--color-on-surface-variant)",
-                marginBottom: "24px",
+                padding: "60px 20px",
+                textAlign: "center",
+                border: "1px dashed var(--color-outline-variant)",
+                backgroundColor: "var(--color-surface-container-lowest)",
               }}
             >
-              DEEVUH was born from a singular vision: to dismantle the noise of hyper-fast fashion and return to a state of absolute garment integrity. We do not design hundreds of disposable pieces. We design four complete, beautiful outfits.
-            </p>
-            <p
-              style={{
-                fontSize: "16px",
-                lineHeight: 1.8,
-                color: "var(--color-on-surface-variant)",
-                marginBottom: "40px",
-              }}
-            >
-              Our textiles are sourced directly from handloom weaver co-operatives. Every seam is checked, every button sewn by hand, and every fit calibrated to feel like second skin.
-            </p>
-            <div style={{ display: "inline-block" }}>
-              <span
+              <p
                 style={{
                   fontFamily: "var(--font-serif)",
-                  fontSize: "18px",
-                  fontWeight: 600,
-                  color: "var(--color-ruby)",
+                  fontSize: "16px",
+                  color: "var(--color-on-surface-variant)",
+                  margin: 0,
                   fontStyle: "italic",
                 }}
               >
-                No compromise. Just pure form.
-              </span>
+                No signature tops available in the current drop. Stay tuned!
+              </p>
             </div>
-          </div>
-          <div
-            className="philosophy-image-col"
+          ) : (
+            <div className="signature-grid">
+              {topsProducts.map((product) => {
+                const isHovered = hoveredProduct === product.id;
+                // If hovered, show 2nd image. Otherwise show 1st image.
+                const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
+
+                return (
+                  <div
+                    key={product.id}
+                    style={{
+                      backgroundColor: "var(--color-surface-container-lowest)",
+                      border: "1px solid var(--color-outline-variant)",
+                      position: "relative",
+                      transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                    onMouseEnter={() => setHoveredProduct(product.id)}
+                    onMouseLeave={() => setHoveredProduct(null)}
+                  >
+                    <Link
+                      href={`/products/${product.id}`}
+                      style={{
+                        display: "block",
+                        aspectRatio: "3/4",
+                        overflow: "hidden",
+                        position: "relative",
+                        background: "#eaeaea",
+                      }}
+                    >
+                      <img
+                        src={currentImage}
+                        alt={product.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)",
+                          transform: isHovered ? "scale(1.05)" : "scale(1)",
+                        }}
+                      />
+                      
+                      {/* Size tag indicator on hover */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "0",
+                          left: "0",
+                          right: "0",
+                          backgroundColor: "rgba(252, 249, 248, 0.9)",
+                          backdropFilter: "blur(4px)",
+                          padding: "10px",
+                          textAlign: "center",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          letterSpacing: "0.05em",
+                          color: "var(--color-charcoal)",
+                          transform: isHovered ? "translateY(0)" : "translateY(100%)",
+                          transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                          borderTop: "1px solid var(--color-outline-variant)",
+                        }}
+                      >
+                        Available in: {product.sizes.join(", ")}
+                      </div>
+                    </Link>
+
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", flex: 1 }}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          letterSpacing: "0.15em",
+                          textTransform: "uppercase",
+                          color: "var(--color-ruby)",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {product.category}
+                      </span>
+                      <h3
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: "18px",
+                          fontWeight: 600,
+                          color: "var(--color-charcoal)",
+                          marginBottom: "12px",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        <Link
+                          href={`/products/${product.id}`}
+                          style={{
+                            color: "inherit",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {product.title}
+                        </Link>
+                      </h3>
+                      
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginTop: "auto",
+                          paddingTop: "16px",
+                          borderTop: "1px solid var(--color-outline-variant)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: "17px",
+                            fontWeight: 700,
+                            color: "var(--color-charcoal)",
+                          }}
+                        >
+                          ₹{product.price.toLocaleString("en-IN")}
+                        </span>
+                        <Link
+                          href={`/products/${product.id}`}
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            color: "var(--color-charcoal)",
+                            textDecoration: "none",
+                            borderBottom: "1px solid var(--color-charcoal)",
+                            paddingBottom: "2px",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--color-ruby)";
+                            e.currentTarget.style.borderBottomColor = "var(--color-ruby)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "var(--color-charcoal)";
+                            e.currentTarget.style.borderBottomColor = "var(--color-charcoal)";
+                          }}
+                        >
+                          View Details
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+
+      {/* ════════ OUR STORY ════════ */}
+      <section
+        id="our-story-section"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          minHeight: "520px",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {/* Background image */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+          }}
+        >
+          <img
+            src="/products/Combo/DSC_0079.jpg"
+            alt="Behind the scenes at DEEVUH"
             style={{
+              width: "100%",
               height: "100%",
-              overflow: "hidden",
-              borderLeft: "1px solid var(--color-outline-variant)",
-              alignSelf: "stretch",
-              position: "relative",
-              minHeight: "560px",
+              objectFit: "cover",
+              filter: "brightness(0.35)",
+            }}
+          />
+        </div>
+
+        {/* Text overlay */}
+        <div
+          className="container"
+          style={{
+            position: "relative",
+            zIndex: 1,
+            maxWidth: "560px",
+            padding: "80px 24px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: "rgba(253, 240, 213, 0.5)",
+              display: "block",
+              marginBottom: "16px",
             }}
           >
-            <img
-              src={philosophyImage}
-              alt="Artisanal tailor working on DEEVUH garments"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                position: "absolute",
-                inset: 0,
-              }}
-            />
+            Our Story
+          </span>
+          <h2
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--story-title-size)",
+              fontWeight: 600,
+              lineHeight: 1.4,
+              color: "var(--color-cream)",
+              marginBottom: "24px",
+            }}
+          >
+            From Two Best Friends, With Love.
+          </h2>
+          <div
+            style={{
+              fontSize: "13px",
+              lineHeight: 1.9,
+              color: "rgba(253, 240, 213, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <p style={{ margin: 0 }}>
+              Deevuh was born from a shared love for fashion and a dream to create something meaningful together.
+            </p>
+            <p style={{ margin: 0 }}>
+              Proudly made in India, every piece is crafted with care by talented artisans and karigars who bring our designs to life. Behind every stitch is craftsmanship, passion, and countless hours of dedication.
+            </p>
+            <p style={{ margin: 0, fontWeight: 500, color: "var(--color-cream)" }}>
+              We're not here to chase trends.
+            </p>
+            <p style={{ margin: 0 }}>
+              We're here to create pieces that make you feel confident, beautiful, and unapologetically yourself.
+            </p>
+            <p style={{ margin: 0, fontStyle: "italic", color: "rgba(253, 240, 213, 0.5)", marginTop: "8px" }}>
+              Thank you for supporting our dream and becoming part of the Deevuh story. ♡
+            </p>
           </div>
         </div>
       </section>
 
       {/* ════════ NEWSLETTER ════════ */}
       <section
+        id="newsletter-section"
         className="section-gap"
         style={{
           backgroundColor: "var(--color-charcoal)",
@@ -755,7 +921,7 @@ export default function Home() {
           <h2
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "38px",
+              fontSize: "var(--newsletter-title-size)",
               fontWeight: 600,
               color: "var(--color-cream)",
               marginBottom: "20px",
@@ -856,9 +1022,33 @@ export default function Home() {
             </div>
 
             {[
-              { title: "Collection", links: ["Baby Blue Coordset", "Beige Tailored Set", "Brown Earthy Coordset", "Beige Dupatta Set"] },
-              { title: "Story", links: ["Our Philosophy", "Artisanal Cooperatives", "Sartorial Calibrations", "Carbon Neutrality"] },
-              { title: "Customer Service", links: ["Contact Support", "Dispatches & Shipping", "Sizing Calibrator", "Exchange Protocol"] },
+              {
+                title: "Collection",
+                links: [
+                  { label: "The Vatavaran Coordset", href: "/products/baby-blue-coordset" },
+                  { label: "The Korean Coordset", href: "/products/beige-outfit" },
+                  { label: "The Mocha Brown Coordset", href: "/products/brown-coordset" },
+                  { label: "The Rani Coordset", href: "/products/dupatta-beige-outfit" },
+                ],
+              },
+              {
+                title: "Story",
+                links: [
+                  { label: "Our Philosophy", href: "#our-story-section" },
+                  { label: "Artisanal Cooperatives", href: "#" },
+                  { label: "Sartorial Calibrations", href: "#" },
+                  { label: "Carbon Neutrality", href: "#" },
+                ],
+              },
+              {
+                title: "Customer Service",
+                links: [
+                  { label: "Contact Support", href: "#footer-section" },
+                  { label: "Dispatches & Shipping", href: "#" },
+                  { label: "Sizing Calibrator", href: "#" },
+                  { label: "Exchange Protocol", href: "#" },
+                ],
+              },
             ].map((col) => (
               <div key={col.title}>
                 <h4
@@ -875,9 +1065,9 @@ export default function Home() {
                 </h4>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {col.links.map((link) => (
-                    <li key={link} style={{ marginBottom: "12px" }}>
+                    <li key={link.label} style={{ marginBottom: "12px" }}>
                       <Link
-                        href="#"
+                        href={link.href}
                         style={{
                           fontSize: "13px",
                           color: "rgba(253, 240, 213, 0.4)",
@@ -887,7 +1077,7 @@ export default function Home() {
                         onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-cream)")}
                         onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(253, 240, 213, 0.4)")}
                       >
-                        {link}
+                        {link.label}
                       </Link>
                     </li>
                   ))}

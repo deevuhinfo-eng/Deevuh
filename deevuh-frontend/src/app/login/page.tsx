@@ -208,9 +208,24 @@ function LoginForm() {
           </div>
           
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-on-surface-variant)', marginBottom: '6px' }}>
-              Password
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-on-surface-variant)' }}>
+                Password
+              </label>
+              {!isRegistering && (
+                <a
+                  href="/forgot-password"
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--color-ruby)',
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                  }}
+                >
+                  Forgot Password?
+                </a>
+              )}
+            </div>
             <input
               id="password"
               type="password"

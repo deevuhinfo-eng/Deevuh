@@ -32,7 +32,6 @@ async function main() {
         { size: 'S', price: 3499, stockQty: 10 },
         { size: 'M', price: 3499, stockQty: 15 },
         { size: 'L', price: 3499, stockQty: 12 },
-        { size: 'XL', price: 3699, stockQty: 8 },
       ],
       images: [
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114405/deevuh/products/baby%20blue%20coordset/1%20picture.jpg.jpg' },
@@ -57,7 +56,6 @@ async function main() {
         { size: 'S', price: 2999, stockQty: 12 },
         { size: 'M', price: 2999, stockQty: 18 },
         { size: 'L', price: 2999, stockQty: 10 },
-        { size: 'XL', price: 3199, stockQty: 6 },
       ],
       images: [
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114588/deevuh/products/beige%20outfit/1%20picture.jpg.jpg' },
@@ -79,11 +77,11 @@ async function main() {
         { size: 'M', price: 3299, stockQty: 14 },
         { size: 'L', price: 3299, stockQty: 10 },
         { size: 'XL', price: 3499, stockQty: 5 },
+        { size: 'XXL', price: 3499, stockQty: 5 },
       ],
       images: [
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114670/deevuh/products/brown%20coordsets/1st%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114685/deevuh/products/brown%20coordsets/2nd%20picture.jpg.jpg' },
-        { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114701/deevuh/products/brown%20coordsets/3rd%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114726/deevuh/products/brown%20coordsets/4th%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114741/deevuh/products/brown%20coordsets/5th%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114755/deevuh/products/brown%20coordsets/6th%20picture.jpg.jpg' },
@@ -100,7 +98,6 @@ async function main() {
         { size: 'S', price: 4299, stockQty: 8 },
         { size: 'M', price: 4299, stockQty: 10 },
         { size: 'L', price: 4299, stockQty: 6 },
-        { size: 'XL', price: 4499, stockQty: 4 },
       ],
       images: [
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114854/deevuh/products/dupatta%20beige%20outfit/1st%20picture.jpg.jpg' },

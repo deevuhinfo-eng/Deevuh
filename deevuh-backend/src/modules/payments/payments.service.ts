@@ -7,7 +7,7 @@ const GST_RATE = 0.18; // 18% Indian GST
  * Calculate GST amount with rounding to 2 decimal places.
  */
 export const calculateGST = (amount: number): number => {
-  return Math.round(amount * GST_RATE * 100) / 100;
+  return Math.round((amount - amount / (1 + GST_RATE)) * 100) / 100;
 };
 
 /**

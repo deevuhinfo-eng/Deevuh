@@ -40,6 +40,7 @@ model User {
   isEmailVerified Boolean  @default(false) @map("is_email_verified")
   carts           Cart[]
   orders          Order[]
+  reviews         Review[]
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("users")
@@ -54,6 +55,7 @@ model Product {
   isActive    Boolean          @default(true) @map("is_active")
   variants    ProductVariant[]
   images      ProductImage[]
+  reviews     Review[]
   createdAt   DateTime         @default(now()) @map("created_at")
 
   @@map("products")
@@ -175,6 +177,17 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @db.VarChar(255)
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
 model AuthLog {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String?  @map("user_id") @db.Uuid
@@ -185,3 +198,21 @@ model AuthLog {
 
   @@map("auth_logs")
 }
+
+model Review {
+  id               String   @id @default(uuid()) @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId           String   @map("user_id") @db.Uuid
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating           Int      @db.Integer
+  reviewText       String   @map("review_text") @db.Text
+  verifiedPurchase Boolean  @default(false) @map("verified_purchase")
+  isHidden         Boolean  @default(false) @map("is_hidden")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([productId, userId], name: "product_user_unique")
+  @@map("reviews")
+}
+
