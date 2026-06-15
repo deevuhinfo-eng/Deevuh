@@ -82,7 +82,6 @@ async function main() {
       images: [
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114670/deevuh/products/brown%20coordsets/1st%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114685/deevuh/products/brown%20coordsets/2nd%20picture.jpg.jpg' },
-        { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114701/deevuh/products/brown%20coordsets/3rd%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114726/deevuh/products/brown%20coordsets/4th%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114741/deevuh/products/brown%20coordsets/5th%20picture.jpg.jpg' },
         { imageUrl: 'https://res.cloudinary.com/dnj50tf7s/image/upload/f_auto,q_auto/v1780114755/deevuh/products/brown%20coordsets/6th%20picture.jpg.jpg' },
