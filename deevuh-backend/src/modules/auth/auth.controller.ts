@@ -149,7 +149,20 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, name: true, email: true, phone: true, avatar: true, authProvider: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        authProvider: true,
+        createdAt: true,
+        chest: true,
+        waist: true,
+        shoulder: true,
+        height: true,
+        fit: true,
+      },
     });
     res.status(200).json({ status: 'success', data: user });
   } catch (error: any) {
@@ -159,7 +172,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, phone } = req.body;
     if (!email || !password) {
       res.status(400).json({ status: 'error', message: 'Email and password are required.' });
       return;
@@ -184,6 +197,14 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     if (!user) {
       res.status(404).json({ status: 'error', message: 'No account found with this email address.' });
       return;
+    }
+
+    // Security: If phone is set on the user account, require it to match
+    if (user.phone) {
+      if (!phone || phone.trim() !== user.phone.trim()) {
+        res.status(400).json({ status: 'error', message: 'Verification details (phone number) do not match.' });
+        return;
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -400,6 +421,38 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     await prisma.emailVerificationToken.delete({ where: { id: verification.id } });
 
     res.status(200).json({ status: 'success', message: 'Email verified successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const updateSizing = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ status: 'error', message: 'Not authenticated.' });
+      return;
+    }
+
+    const { chest, waist, shoulder, height, fit } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { chest, waist, shoulder, height, fit },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        chest: true,
+        waist: true,
+        shoulder: true,
+        height: true,
+        fit: true,
+      }
+    });
+
+    res.status(200).json({ status: 'success', data: updatedUser });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

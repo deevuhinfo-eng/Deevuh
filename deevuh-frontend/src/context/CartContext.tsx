@@ -144,7 +144,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    syncCartWithBackend();
+    // Fetch CSRF token globally on mount to ensure cookie is present for any non-safe actions
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/auth/csrf`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+      .then(() => syncCartWithBackend())
+      .catch((err) => {
+        console.error('Failed to fetch CSRF token:', err);
+        syncCartWithBackend();
+      });
   }, []);
 
   // Sync guest cart to local storage whenever it changes

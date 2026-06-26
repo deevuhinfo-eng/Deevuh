@@ -29,98 +29,21 @@ interface Order {
   items: OrderItem[];
 }
 
-const MOCK_ORDERS: Order[] = [
-  {
-    id: "order-9821-deevuh",
-    finalAmount: "3499",
-    paymentStatus: "SUCCESS",
-    orderStatus: "SHIPPED",
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      name: "Devanshu",
-      email: "devanshu@website.com",
-      phone: "+91 98765 43210",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "M",
-          price: "3499",
-          product: {
-            title: "Baby Blue Coordset",
-            images: ["/products/Baby Blue Coordset/1 Picture.jpg"]
-          }
-        }
-      }
-    ]
-  },
-  {
-    id: "order-4402-deevuh",
-    finalAmount: "2999",
-    paymentStatus: "SUCCESS",
-    orderStatus: "DELIVERED",
-    createdAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      name: "Devanshu",
-      email: "devanshu@website.com",
-      phone: "+91 98765 43210",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "M",
-          price: "2999",
-          product: {
-            title: "Beige Tailored Set",
-            images: ["/products/Beige outfit/1 picture.jpg"]
-          }
-        }
-      }
-    ]
-  },
-  {
-    id: "order-1209-deevuh",
-    finalAmount: "3299",
-    paymentStatus: "PENDING",
-    orderStatus: "CREATED",
-    createdAt: new Date().toISOString(),
-    user: {
-      name: "Aarav Sharma",
-      email: "aarav@gmail.com",
-      phone: "+91 99999 88888",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "S",
-          price: "3299",
-          product: {
-            title: "Brown Earthy Coordset",
-            images: ["/products/Brown coordsets/1st Picture.jpg"]
-          }
-        }
-      }
-    ]
-  }
-];
-
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [activeOrderDetails, setActiveOrderDetails] = useState<Order | null>(null);
+  const [error, setError] = useState("");
 
   const fetchOrders = async () => {
     try {
-      const res: any = await api.get("/admin/orders")
-        .catch(() => ({ data: MOCK_ORDERS }));
-      setOrders(res.data || MOCK_ORDERS);
-    } catch (err) {
-      console.warn("Backend orders fetch failed, using fallback list.", err);
-      setOrders(MOCK_ORDERS);
+      setError("");
+      const res: any = await api.get("/admin/orders");
+      setOrders(res.data || []);
+    } catch (err: any) {
+      console.error("Backend orders fetch failed", err);
+      setError("Failed to load orders from the database.");
     } finally {
       setLoading(false);
     }
@@ -132,19 +55,13 @@ export default function AdminOrdersPage() {
 
   const transitionOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await api.put(`/admin/orders/${orderId}/status`, { orderStatus: newStatus })
-        .catch(() => {
-          // Local fallback simulation
-          setOrders(orders.map(o => o.id === orderId ? { ...o, orderStatus: newStatus } : o));
-          if (activeOrderDetails && activeOrderDetails.id === orderId) {
-            setActiveOrderDetails({ ...activeOrderDetails, orderStatus: newStatus });
-          }
-        });
-      
-      // Refresh list
+      await api.put(`/admin/orders/${orderId}/status`, { orderStatus: newStatus });
       fetchOrders();
+      if (activeOrderDetails && activeOrderDetails.id === orderId) {
+        setActiveOrderDetails({ ...activeOrderDetails, orderStatus: newStatus });
+      }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || "Failed to update order status.");
     }
   };
 
@@ -196,6 +113,19 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
+        {error && (
+          <div style={{
+            backgroundColor: "var(--color-error-container)",
+            border: "1px solid var(--color-error)",
+            color: "var(--color-error)",
+            padding: "12px 16px",
+            marginBottom: "20px",
+            fontSize: "14px"
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -210,7 +140,14 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
+                    No orders found.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order) => (
                 <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => setActiveOrderDetails(order)}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700 }}>
                     #{order.id.slice(0, 8).toUpperCase()}
@@ -271,7 +208,8 @@ export default function AdminOrdersPage() {
                     </select>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

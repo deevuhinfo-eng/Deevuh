@@ -100,10 +100,35 @@ router.post('/add', authMiddleware, async (req: AuthenticatedRequest, res: Respo
 router.put('/update', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { cartItemId, quantity } = req.body;
+    if (!cartItemId) {
+      res.status(400).json({ status: 'error', message: 'Cart item ID is required.' });
+      return;
+    }
+
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: { cart: true }
+    });
+
+    if (!cartItem || !cartItem.cart || cartItem.cart.userId !== req.user?.id) {
+      res.status(404).json({ status: 'error', message: 'Cart item not found.' });
+      return;
+    }
 
     if (quantity <= 0) {
       await prisma.cartItem.delete({ where: { id: cartItemId } });
     } else {
+      const variant = await prisma.productVariant.findUnique({
+        where: { id: cartItem.productVariantId }
+      });
+      if (!variant) {
+        res.status(404).json({ status: 'error', message: 'Product variant not found.' });
+        return;
+      }
+      if (variant.stockQty < quantity) {
+        res.status(400).json({ status: 'error', message: `Insufficient stock. Only ${variant.stockQty} items left.` });
+        return;
+      }
       await prisma.cartItem.update({ where: { id: cartItemId }, data: { quantity } });
     }
 
@@ -116,6 +141,21 @@ router.put('/update', authMiddleware, async (req: AuthenticatedRequest, res: Res
 router.delete('/remove', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { cartItemId } = req.body;
+    if (!cartItemId) {
+      res.status(400).json({ status: 'error', message: 'Cart item ID is required.' });
+      return;
+    }
+
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: { cart: true }
+    });
+
+    if (!cartItem || !cartItem.cart || cartItem.cart.userId !== req.user?.id) {
+      res.status(404).json({ status: 'error', message: 'Cart item not found.' });
+      return;
+    }
+
     await prisma.cartItem.delete({ where: { id: cartItemId } });
     res.status(200).json({ status: 'success', message: 'Item removed from cart.' });
   } catch (error: any) {

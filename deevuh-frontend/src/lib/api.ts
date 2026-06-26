@@ -6,14 +6,37 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-const getDefaultHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+const getDefaultHeaders = (isFormData = false): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
   const csrfToken = getCsrfToken();
   if (csrfToken) {
     headers['X-XSRF-TOKEN'] = csrfToken;
   }
   return headers;
 };
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error: any) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out after 30 seconds.');
+    }
+    throw error;
+  }
+}
 
 async function handleResponse<T>(res: Response, path: string, options: RequestInit): Promise<T> {
   const data = await res.json().catch(() => ({}));
@@ -22,7 +45,7 @@ async function handleResponse<T>(res: Response, path: string, options: RequestIn
     if (res.status === 401 && path !== '/auth/refresh') {
       try {
         // Attempt silent refresh
-        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+        const refreshRes = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
           method: 'POST',
           headers: getDefaultHeaders(),
           credentials: 'include',
@@ -30,7 +53,7 @@ async function handleResponse<T>(res: Response, path: string, options: RequestIn
         
         if (refreshRes.ok) {
           // Retry original request
-          const retryRes = await fetch(`${API_BASE}${path}`, options);
+          const retryRes = await fetchWithTimeout(`${API_BASE}${path}`, options);
           if (retryRes.ok) {
             return retryRes.json();
           }
@@ -52,51 +75,55 @@ export const api = {
       headers: getDefaultHeaders(),
       credentials: 'include' as RequestCredentials,
     };
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, options);
     return handleResponse<T>(res, path, options);
   },
 
   post: async <T = any>(path: string, data?: any): Promise<T> => {
+    const isFormData = data instanceof FormData;
     const options = {
       method: 'POST',
-      headers: getDefaultHeaders(),
+      headers: getDefaultHeaders(isFormData),
       credentials: 'include' as RequestCredentials,
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     };
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, options);
     return handleResponse<T>(res, path, options);
   },
 
   put: async <T = any>(path: string, data?: any): Promise<T> => {
+    const isFormData = data instanceof FormData;
     const options = {
       method: 'PUT',
-      headers: getDefaultHeaders(),
+      headers: getDefaultHeaders(isFormData),
       credentials: 'include' as RequestCredentials,
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     };
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, options);
     return handleResponse<T>(res, path, options);
   },
 
   delete: async <T = any>(path: string, data?: any): Promise<T> => {
+    const isFormData = data instanceof FormData;
     const options = {
       method: 'DELETE',
-      headers: getDefaultHeaders(),
+      headers: getDefaultHeaders(isFormData),
       credentials: 'include' as RequestCredentials,
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     };
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, options);
     return handleResponse<T>(res, path, options);
   },
 
   patch: async <T = any>(path: string, data?: any): Promise<T> => {
+    const isFormData = data instanceof FormData;
     const options = {
       method: 'PATCH',
-      headers: getDefaultHeaders(),
+      headers: getDefaultHeaders(isFormData),
       credentials: 'include' as RequestCredentials,
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     };
-    const res = await fetch(`${API_BASE}${path}`, options);
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, options);
     return handleResponse<T>(res, path, options);
   },
 

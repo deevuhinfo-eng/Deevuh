@@ -35,20 +35,17 @@ export default function AdminProductsPage() {
   const [imageInput, setImageInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
-    // Attempt backend load, fallback to local dataset if unavailable
     api.get("/products")
       .then((res: any) => {
         const productList = res.data || [];
-        if (productList.length > 0) {
-          setProducts(productList.map(mapBackendProduct));
-        } else {
-          setProducts(PRODUCTS);
-        }
+        setProducts(productList.map(mapBackendProduct));
       })
       .catch((err) => {
-        console.warn("Backend products fetch failed, using capsule dataset.", err);
-        setProducts(PRODUCTS);
+        console.error("Backend products fetch failed", err);
+        setError("Failed to load products list from database.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -225,6 +222,19 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
+      {error && (
+        <div style={{
+          backgroundColor: "var(--color-error-container)",
+          border: "1px solid var(--color-error)",
+          color: "var(--color-error)",
+          padding: "12px 16px",
+          marginBottom: "20px",
+          fontSize: "14px"
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* CREATE / EDIT FORM */}
       {showForm && (
         <form onSubmit={handleSubmit} className="card-elevated" style={{ marginBottom: "32px", padding: "24px" }}>
@@ -383,7 +393,14 @@ export default function AdminProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((prod) => (
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
+                  No products found in the database.
+                </td>
+              </tr>
+            ) : (
+              products.map((prod) => (
               <tr key={prod.id}>
                 <td>
                   <img
@@ -429,7 +446,8 @@ export default function AdminProductsPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>
