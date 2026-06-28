@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../config/database.js';
 import { runReconciliation } from '../modules/payments/reconciliation.service.js';
+import { retryFailedEmails } from '../modules/payments/email-retry.service.js';
 
 const ABANDONED_CART_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 const UNPAID_ORDER_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
@@ -109,12 +110,25 @@ const reconciliationJob = cron.schedule('0 * * * *', async () => {
   }
 });
 
+/**
+ * Email Retry Cron — Every 5 minutes
+ * Retries failed email deliveries with exponential backoff.
+ */
+const emailRetryJob = cron.schedule('*/5 * * * *', async () => {
+  try {
+    await retryFailedEmails();
+  } catch (error) {
+    console.error('[CRON] Email Retry Error:', error);
+  }
+});
+
 export function initCronJobs(): void {
   cartRecoveryJob.start();
   unpaidOrderCancelJob.start();
   lowStockAlertJob.start();
   reconciliationJob.start();
-  console.log('[CRON] All scheduled jobs initialized.');
+  emailRetryJob.start();
+  console.log('[CRON] All scheduled jobs initialized (including email retry).');
 }
 
-export { cartRecoveryJob, unpaidOrderCancelJob, lowStockAlertJob, reconciliationJob };
+export { cartRecoveryJob, unpaidOrderCancelJob, lowStockAlertJob, reconciliationJob, emailRetryJob };

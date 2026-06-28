@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
-import { sendOrderConfirmationEmail } from '../auth/email.service.js';
+import { sendOrderEmails, type OrderEmailData } from '../auth/email.service.js';
 
 const GST_RATE = 0.18; // 18% Indian GST
 
@@ -153,21 +153,45 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
     return false;
   });
 
-  // Send confirmation email asynchronously on success
+  // Send both emails (customer + owner) asynchronously on success
   if (isSuccess && status === 'success') {
     const updatedOrder = await prisma.order.findUnique({
       where: { paymentGatewayTxnId: txnid },
-      include: { user: true },
+      include: {
+        user: true,
+        items: {
+          include: {
+            variant: {
+              include: { product: true },
+            },
+          },
+        },
+      },
     });
 
     if (updatedOrder?.user?.email) {
-      sendOrderConfirmationEmail(updatedOrder.user.email, {
+      const emailData: OrderEmailData = {
         orderId: updatedOrder.id,
         customerName: updatedOrder.shippingName,
-        finalAmount: Number(updatedOrder.finalAmount),
+        customerEmail: updatedOrder.user.email,
+        customerPhone: updatedOrder.shippingPhone,
         shippingAddress: updatedOrder.shippingAddress,
-      }).catch((err: any) => {
-        console.error('[Order Confirmation Email Error]', err.message);
+        totalAmount: Number(updatedOrder.totalAmount),
+        discountAmount: Number(updatedOrder.discountAmount),
+        gstAmount: Number(updatedOrder.gstAmount),
+        finalAmount: Number(updatedOrder.finalAmount),
+        paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || txnid,
+        paymentMethod: 'PayU',
+        items: updatedOrder.items.map((item: any) => ({
+          productTitle: item.variant?.product?.title || 'Tailored Garment',
+          size: item.variant?.size || 'Custom',
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+        })),
+      };
+
+      sendOrderEmails(emailData).catch((err: any) => {
+        console.error('[Order Email Error]', err.message);
       });
     }
   }

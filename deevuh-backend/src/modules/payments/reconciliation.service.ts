@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
-import { sendOrderConfirmationEmail } from '../auth/email.service.js';
+import { sendOrderEmails, type OrderEmailData } from '../auth/email.service.js';
 
 interface PayUTransactionDetails {
   mihpayid: string;
@@ -186,18 +186,41 @@ export async function runReconciliation(): Promise<{
               });
             });
 
-            // Send confirmation email asynchronously outside transaction
+            // Send both emails (customer + owner) asynchronously outside transaction
             const updatedOrder = await prisma.order.findUnique({
               where: { id: order.id },
-              include: { user: true },
+              include: {
+                user: true,
+                items: {
+                  include: {
+                    variant: {
+                      include: { product: true },
+                    },
+                  },
+                },
+              },
             });
             if (updatedOrder?.user?.email) {
-              sendOrderConfirmationEmail(updatedOrder.user.email, {
+              const emailData: OrderEmailData = {
                 orderId: updatedOrder.id,
                 customerName: updatedOrder.shippingName,
-                finalAmount: Number(updatedOrder.finalAmount),
+                customerEmail: updatedOrder.user.email,
+                customerPhone: updatedOrder.shippingPhone,
                 shippingAddress: updatedOrder.shippingAddress,
-              }).catch((e: any) => console.error(`[Reconciliation] Confirmation email failed: ${e.message}`));
+                totalAmount: Number(updatedOrder.totalAmount),
+                discountAmount: Number(updatedOrder.discountAmount),
+                gstAmount: Number(updatedOrder.gstAmount),
+                finalAmount: Number(updatedOrder.finalAmount),
+                paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || '',
+                paymentMethod: 'PayU',
+                items: updatedOrder.items.map((item: any) => ({
+                  productTitle: item.variant?.product?.title || 'Tailored Garment',
+                  size: item.variant?.size || 'Custom',
+                  quantity: item.quantity,
+                  unitPrice: Number(item.unitPrice),
+                })),
+              };
+              sendOrderEmails(emailData).catch((e: any) => console.error(`[Reconciliation] Email failed: ${e.message}`));
             }
           } catch (err: any) {
             errors.push(`Failed to reconcile order ${order.id}: ${err.message}`);

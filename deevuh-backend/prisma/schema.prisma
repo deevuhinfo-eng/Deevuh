@@ -262,4 +262,23 @@ model ProcessedWebhook {
   @@map("processed_webhooks")
 }
 
+model EmailLog {
+  id              String    @id @default(uuid()) @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  emailType       String    @map("email_type") @db.VarChar(50)
+  recipient       String    @db.VarChar(255)
+  status          String    @db.VarChar(50)
+  resendMessageId String?   @map("resend_message_id") @db.VarChar(255)
+  retryCount      Int       @default(0) @map("retry_count")
+  lastError       String?   @map("last_error") @db.Text
+  sentAt          DateTime? @map("sent_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([orderId, emailType], name: "order_email_unique")
+  @@index([orderId])
+  @@index([status])
+  @@map("email_logs")
+}
+
 

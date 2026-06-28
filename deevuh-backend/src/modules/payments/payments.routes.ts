@@ -5,7 +5,6 @@ import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { calculateGST, generatePayUHash, processPayUWebhook } from './payments.service.js';
-import { sendOrderConfirmationEmail } from '../auth/email.service.js';
 
 const router = Router();
 
