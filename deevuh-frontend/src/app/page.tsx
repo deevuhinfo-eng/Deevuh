@@ -18,7 +18,9 @@ const mapBackendProduct = (prod: any): Product => ({
 });
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
   const { cartItems, toggleCart } = useCart();
 
@@ -26,12 +28,14 @@ export default function Home() {
     api.get("/products")
       .then((res: any) => {
         const productList = res.data || [];
-        if (productList.length > 0) {
-          setProducts(productList.map(mapBackendProduct));
-        }
+        setProducts(productList.map(mapBackendProduct));
       })
       .catch((err) => {
-        console.warn("Backend products fetch failed, using fallback static catalog.", err);
+        console.error("Backend products fetch failed:", err);
+        setError("Failed to load catalog products from the database.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -447,10 +451,23 @@ export default function Home() {
           </div>
 
           <div className="signature-grid">
-            {bestsellerProducts.map((product) => {
-              const isHovered = hoveredProduct === product.id;
-              // If hovered, show 2nd image. Otherwise show 1st image.
-              const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
+            {loading ? (
+              <div style={{ gridColumn: "1 / -1", padding: "60px 20px", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+                Loading latest drops...
+              </div>
+            ) : error ? (
+              <div style={{ gridColumn: "1 / -1", padding: "60px 20px", textAlign: "center", border: "1px dashed var(--color-ruby)", color: "var(--color-ruby)" }}>
+                {error}
+              </div>
+            ) : bestsellerProducts.length === 0 ? (
+              <div style={{ gridColumn: "1 / -1", padding: "60px 20px", textAlign: "center", border: "1px dashed var(--color-outline-variant)" }}>
+                No bestsellers available currently.
+              </div>
+            ) : (
+              bestsellerProducts.map((product) => {
+                const isHovered = hoveredProduct === product.id;
+                // If hovered, show 2nd image. Otherwise show 1st image.
+                const currentImage = isHovered && product.images[1] ? product.images[1] : product.images[0];
 
               return (
                 <div
@@ -594,7 +611,8 @@ export default function Home() {
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
           </div>
 
           {/* ════════ TOPS CATEGORY SECTION ════════ */}
@@ -619,7 +637,15 @@ export default function Home() {
             </span>
           </div>
 
-          {topsProducts.length === 0 ? (
+          {loading ? (
+            <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+              Loading latest drops...
+            </div>
+          ) : error ? (
+            <div style={{ padding: "60px 20px", textAlign: "center", border: "1px dashed var(--color-ruby)", color: "var(--color-ruby)" }}>
+              {error}
+            </div>
+          ) : topsProducts.length === 0 ? (
             <div
               style={{
                 padding: "60px 20px",

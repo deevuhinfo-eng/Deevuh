@@ -24,64 +24,6 @@ interface AbandonedCart {
   }>;
 }
 
-const MOCK_CARTS: AbandonedCart[] = [
-  {
-    id: "cart-1",
-    lastActivityAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(), // 40 mins ago
-    user: {
-      name: "Kabir Mehta",
-      email: "kabir@mehta.com",
-      phone: "+91 98989 77777",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "L",
-          price: "3299",
-          product: {
-            title: "Brown Earthy Coordset",
-            images: ["/products/Brown coordsets/1st Picture.jpg"]
-          }
-        }
-      }
-    ]
-  },
-  {
-    id: "cart-2",
-    lastActivityAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-    user: {
-      name: "Riya Kapoor",
-      email: "riya.kapoor@gmail.com",
-      phone: "+91 98222 11111",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "S",
-          price: "4299",
-          product: {
-            title: "Beige Dupatta Set",
-            images: ["/products/Dupatta beige outfit/1st Picture.jpg"]
-          }
-        }
-      },
-      {
-        quantity: 1,
-        variant: {
-          size: "S",
-          price: "3499",
-          product: {
-            title: "Baby Blue Coordset",
-            images: ["/products/Baby Blue Coordset/1 Picture.jpg"]
-          }
-        }
-      }
-    ]
-  }
-];
-
 export default function AdminAbandonedCartsPage() {
   const [carts, setCarts] = useState<AbandonedCart[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,12 +32,11 @@ export default function AdminAbandonedCartsPage() {
 
   const fetchCarts = async () => {
     try {
-      const res: any = await api.get("/admin/abandoned-carts")
-        .catch(() => ({ data: MOCK_CARTS }));
-      setCarts(res.data || MOCK_CARTS);
+      const res: any = await api.get("/admin/abandoned-carts");
+      setCarts(res.data || []);
     } catch (err) {
-      console.warn("Backend abandoned carts fetch failed, using fallback list.", err);
-      setCarts(MOCK_CARTS);
+      console.error("Backend abandoned carts fetch failed:", err);
+      setCarts([]);
     } finally {
       setLoading(false);
     }

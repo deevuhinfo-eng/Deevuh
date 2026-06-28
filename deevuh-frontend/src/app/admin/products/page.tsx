@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
-import { PRODUCTS, Product } from "@/data/products";
+import { Product } from "@/data/products";
 
 const mapBackendProduct = (prod: any): Product => ({
   id: prod.id,

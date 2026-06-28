@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PRODUCTS } from "../../data/products";
 import api from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
