@@ -1,5 +1,7 @@
 import prisma from '../../config/database.js';
 import { sendCustomerConfirmationEmail, sendOwnerNotificationEmail, type OrderEmailData } from '../auth/email.service.js';
+import { logger } from '../../utils/logger.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const MAX_RETRIES = 3;
 
@@ -14,6 +16,7 @@ const BACKOFF_SECONDS = [30, 120, 600];
  */
 export async function retryFailedEmails(): Promise<{ retried: number; succeeded: number; permanentlyFailed: number }> {
   const stats = { retried: 0, succeeded: 0, permanentlyFailed: 0 };
+  const retryRequestId = `retry-${uuidv4().substring(0, 8)}`;
 
   try {
     // Find all failed emails that haven't exceeded max retries
@@ -28,7 +31,11 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
 
     if (failedEmails.length === 0) return stats;
 
-    console.log(`[EmailRetry] Found ${failedEmails.length} failed email(s) to retry`);
+    logger.info('Email retry cycle started', {
+      requestId: retryRequestId,
+      failedEmailsCount: failedEmails.length,
+      functionName: 'retryFailedEmails',
+    });
 
     for (const emailLog of failedEmails) {
       // Check backoff: don't retry too soon
@@ -60,7 +67,13 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
         });
 
         if (!order) {
-          console.error(`[EmailRetry] Order ${emailLog.orderId} not found — marking permanently failed`);
+          logger.error('Order for failed email log not found in database', new Error('Order not found'), {
+            requestId: retryRequestId,
+            orderId: emailLog.orderId,
+            emailLogId: emailLog.id,
+            functionName: 'retryFailedEmails',
+            result: 'FAILURE',
+          });
           await prisma.emailLog.update({
             where: { id: emailLog.id },
             data: { status: 'PERMANENTLY_FAILED', lastError: 'Order not found' },
@@ -92,11 +105,17 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
         let result: { messageId?: string; error?: string };
 
         if (emailLog.emailType === 'customer_confirmation') {
-          result = await sendCustomerConfirmationEmail(emailData);
+          result = await sendCustomerConfirmationEmail(emailData, retryRequestId);
         } else if (emailLog.emailType === 'owner_notification') {
-          result = await sendOwnerNotificationEmail(emailData);
+          result = await sendOwnerNotificationEmail(emailData, retryRequestId);
         } else {
-          console.error(`[EmailRetry] Unknown email type: ${emailLog.emailType}`);
+          logger.error('Unknown email type encountered in retry loop', new Error(`Unknown type: ${emailLog.emailType}`), {
+            requestId: retryRequestId,
+            emailLogId: emailLog.id,
+            emailType: emailLog.emailType,
+            functionName: 'retryFailedEmails',
+            result: 'FAILURE',
+          });
           await prisma.emailLog.update({
             where: { id: emailLog.id },
             data: { status: 'PERMANENTLY_FAILED', lastError: `Unknown email type: ${emailLog.emailType}` },
@@ -119,7 +138,13 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
           });
 
           if (newStatus === 'PERMANENTLY_FAILED') {
-            console.error(`[EmailRetry] Permanently failed ${emailLog.emailType} for order ${emailLog.orderId} after ${MAX_RETRIES} retries`);
+            logger.error(`Email log permanently failed after ${MAX_RETRIES} attempts`, new Error(result.error), {
+              requestId: retryRequestId,
+              orderId: emailLog.orderId,
+              emailType: emailLog.emailType,
+              functionName: 'retryFailedEmails',
+              result: 'FAILURE',
+            });
             stats.permanentlyFailed++;
           }
         } else {
@@ -133,11 +158,24 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
               retryCount: emailLog.retryCount + 1,
             },
           });
-          console.log(`[EmailRetry] Successfully retried ${emailLog.emailType} for order ${emailLog.orderId}`);
+          logger.info('Email log successfully retried and sent', {
+            requestId: retryRequestId,
+            orderId: emailLog.orderId,
+            emailType: emailLog.emailType,
+            resendMessageId: result.messageId || null,
+            functionName: 'retryFailedEmails',
+            result: 'SUCCESS',
+          });
           stats.succeeded++;
         }
       } catch (err: any) {
-        console.error(`[EmailRetry] Unexpected error retrying email ${emailLog.id}:`, err.message);
+        logger.error('Unexpected error retrying email log', err, {
+          requestId: retryRequestId,
+          emailLogId: emailLog.id,
+          orderId: emailLog.orderId,
+          functionName: 'retryFailedEmails',
+          result: 'FAILURE',
+        });
         await prisma.emailLog.update({
           where: { id: emailLog.id },
           data: {
@@ -149,9 +187,18 @@ export async function retryFailedEmails(): Promise<{ retried: number; succeeded:
       }
     }
 
-    console.log(`[EmailRetry] Completed: ${stats.retried} retried, ${stats.succeeded} succeeded, ${stats.permanentlyFailed} permanently failed`);
+    logger.info('Email retry cycle completed', {
+      requestId: retryRequestId,
+      stats,
+      functionName: 'retryFailedEmails',
+      result: 'SUCCESS',
+    });
   } catch (err: any) {
-    console.error('[EmailRetry] Fatal error in retry loop:', err.message);
+    logger.error('Fatal error in email retry loop', err, {
+      requestId: retryRequestId,
+      functionName: 'retryFailedEmails',
+      result: 'FAILURE',
+    });
   }
 
   return stats;

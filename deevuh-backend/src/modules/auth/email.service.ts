@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_key_for_testing');
 
@@ -204,9 +205,22 @@ function buildItemsHtml(items: OrderEmailData['items']): string {
 /**
  * Send customer order confirmation email with full order details.
  */
-export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promise<{ messageId?: string; error?: string }> => {
+export const sendCustomerConfirmationEmail = async (data: OrderEmailData, requestId?: string): Promise<{ messageId?: string; error?: string }> => {
+  logger.info('Customer confirmation email send attempt started', {
+    requestId,
+    orderId: data.orderId,
+    recipient: data.customerEmail,
+    functionName: 'sendCustomerConfirmationEmail',
+  });
+
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] No API key — skipping customer confirmation for ${data.customerEmail}`);
+    logger.warn('Skipping customer email: RESEND_API_KEY not configured', {
+      requestId,
+      orderId: data.orderId,
+      recipient: data.customerEmail,
+      functionName: 'sendCustomerConfirmationEmail',
+      result: 'FAILURE',
+    });
     return { error: 'RESEND_API_KEY not configured' };
   }
 
@@ -329,10 +343,25 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
         </html>
       `,
     });
-    console.log(`[Email] Customer confirmation sent to ${data.customerEmail} for order ${data.orderId}`);
+
+    logger.info('Customer confirmation email sent successfully', {
+      requestId,
+      orderId: data.orderId,
+      recipient: data.customerEmail,
+      resendMessageId: result?.data?.id || null,
+      functionName: 'sendCustomerConfirmationEmail',
+      result: 'SUCCESS',
+    });
+
     return { messageId: result?.data?.id || undefined };
   } catch (err: any) {
-    console.error(`[Email] Failed to send customer confirmation to ${data.customerEmail}:`, err.message);
+    logger.error('Customer confirmation email send failed', err, {
+      requestId,
+      orderId: data.orderId,
+      recipient: data.customerEmail,
+      functionName: 'sendCustomerConfirmationEmail',
+      result: 'FAILURE',
+    });
     return { error: err.message };
   }
 };
@@ -340,11 +369,24 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
 /**
  * Send owner notification email when a new paid order is received.
  */
-export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<{ messageId?: string; error?: string }> => {
+export const sendOwnerNotificationEmail = async (data: OrderEmailData, requestId?: string): Promise<{ messageId?: string; error?: string }> => {
   const ownerEmail = process.env.OWNER_EMAIL || 'deevuhinfo@gmail.com';
 
+  logger.info('Owner notification email send attempt started', {
+    requestId,
+    orderId: data.orderId,
+    recipient: ownerEmail,
+    functionName: 'sendOwnerNotificationEmail',
+  });
+
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] No API key — skipping owner notification for order ${data.orderId}`);
+    logger.warn('Skipping owner email: RESEND_API_KEY not configured', {
+      requestId,
+      orderId: data.orderId,
+      recipient: ownerEmail,
+      functionName: 'sendOwnerNotificationEmail',
+      result: 'FAILURE',
+    });
     return { error: 'RESEND_API_KEY not configured' };
   }
 
@@ -440,10 +482,25 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
         </html>
       `,
     });
-    console.log(`[Email] Owner notification sent to ${ownerEmail} for order ${data.orderId}`);
+
+    logger.info('Owner notification email sent successfully', {
+      requestId,
+      orderId: data.orderId,
+      recipient: ownerEmail,
+      resendMessageId: result?.data?.id || null,
+      functionName: 'sendOwnerNotificationEmail',
+      result: 'SUCCESS',
+    });
+
     return { messageId: result?.data?.id || undefined };
   } catch (err: any) {
-    console.error(`[Email] Failed to send owner notification for order ${data.orderId}:`, err.message);
+    logger.error('Owner notification email send failed', err, {
+      requestId,
+      orderId: data.orderId,
+      recipient: ownerEmail,
+      functionName: 'sendOwnerNotificationEmail',
+      result: 'FAILURE',
+    });
     return { error: err.message };
   }
 };
@@ -460,17 +517,17 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
  * This function must be called AFTER the payment transaction has committed.
  * Email failures do NOT affect the payment or order status.
  */
-export const sendOrderEmails = async (data: OrderEmailData): Promise<void> => {
+export const sendOrderEmails = async (data: OrderEmailData, requestId?: string): Promise<void> => {
   // Send customer confirmation with duplicate protection
   await sendEmailWithProtection(data.orderId, 'customer_confirmation', data.customerEmail, async () => {
-    return sendCustomerConfirmationEmail(data);
-  });
+    return sendCustomerConfirmationEmail(data, requestId);
+  }, requestId);
 
   // Send owner notification with duplicate protection
   const ownerEmail = process.env.OWNER_EMAIL || 'deevuhinfo@gmail.com';
   await sendEmailWithProtection(data.orderId, 'owner_notification', ownerEmail, async () => {
-    return sendOwnerNotificationEmail(data);
-  });
+    return sendOwnerNotificationEmail(data, requestId);
+  }, requestId);
 };
 
 /**
@@ -481,7 +538,8 @@ async function sendEmailWithProtection(
   orderId: string,
   emailType: string,
   recipient: string,
-  sendFn: () => Promise<{ messageId?: string; error?: string }>
+  sendFn: () => Promise<{ messageId?: string; error?: string }>,
+  requestId?: string
 ): Promise<void> {
   try {
     // Check if already sent
@@ -490,7 +548,15 @@ async function sendEmailWithProtection(
     });
 
     if (existing?.status === 'SENT') {
-      console.log(`[Email] Skipping ${emailType} for order ${orderId} — already sent at ${existing.sentAt?.toISOString()}`);
+      logger.info(`Skipping ${emailType} for order ${orderId} — already sent`, {
+        requestId,
+        orderId,
+        recipient,
+        emailType,
+        sentAt: existing.sentAt?.toISOString(),
+        functionName: 'sendEmailWithProtection',
+        result: 'SUCCESS',
+      });
       return;
     }
 
@@ -521,7 +587,14 @@ async function sendEmailWithProtection(
           lastError: result.error,
         },
       });
-      console.error(`[Email] ${emailType} failed for order ${orderId}: ${result.error}`);
+      logger.error(`Email log status updated to FAILED for ${emailType}`, result.error, {
+        requestId,
+        orderId,
+        recipient,
+        emailType,
+        functionName: 'sendEmailWithProtection',
+        result: 'FAILURE',
+      });
     } else {
       await prisma.emailLog.update({
         where: { id: logEntry.id },
@@ -532,9 +605,25 @@ async function sendEmailWithProtection(
           lastError: null,
         },
       });
+      logger.info(`Email log status updated to SENT for ${emailType}`, {
+        requestId,
+        orderId,
+        recipient,
+        emailType,
+        resendMessageId: result.messageId || null,
+        functionName: 'sendEmailWithProtection',
+        result: 'SUCCESS',
+      });
     }
   } catch (err: any) {
-    console.error(`[Email] Error in sendEmailWithProtection for ${emailType}, order ${orderId}:`, err.message);
+    logger.error(`Error in sendEmailWithProtection for ${emailType}`, err, {
+      requestId,
+      orderId,
+      recipient,
+      emailType,
+      functionName: 'sendEmailWithProtection',
+      result: 'FAILURE',
+    });
   }
 }
 

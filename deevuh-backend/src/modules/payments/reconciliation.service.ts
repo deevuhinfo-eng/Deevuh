@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
 import { sendOrderEmails, type OrderEmailData } from '../auth/email.service.js';
+import { logger } from '../../utils/logger.js';
+import { v4 as uuidv4 } from 'uuid';
 
 interface PayUTransactionDetails {
   mihpayid: string;
@@ -65,7 +67,11 @@ export async function queryPayUTransaction(txnid: string): Promise<PayUTransacti
     });
 
     if (!response.ok) {
-      console.error(`[Reconciliation] PayU Web Service returned HTTP error: ${response.statusText}`);
+      logger.error('PayU verify_payment web service returned HTTP error', new Error(response.statusText), {
+        paymentId: txnid,
+        functionName: 'queryPayUTransaction',
+        httpStatus: response.status,
+      });
       return null;
     }
 
@@ -74,7 +80,10 @@ export async function queryPayUTransaction(txnid: string): Promise<PayUTransacti
       return data.transaction_details[txnid];
     }
   } catch (error: any) {
-    console.error(`[Reconciliation] Error calling PayU verify_payment for ${txnid}:`, error.message);
+    logger.error('Error calling PayU verify_payment', error, {
+      paymentId: txnid,
+      functionName: 'queryPayUTransaction',
+    });
   }
   return null;
 }
@@ -89,7 +98,11 @@ export async function runReconciliation(): Promise<{
   errors: string[];
   report: string[];
 }> {
-  console.log('[Reconciliation] Starting run...');
+  const reconRequestId = `recon-${uuidv4().substring(0, 8)}`;
+  logger.info('Reconciliation process started', {
+    requestId: reconRequestId,
+    functionName: 'runReconciliation',
+  });
 
   const report: string[] = [];
   const errors: string[] = [];
@@ -132,7 +145,14 @@ export async function runReconciliation(): Promise<{
         const paidAmount = Number(payuTxn.amount);
 
         if (Math.abs(orderAmount - paidAmount) > 0.01) {
-          errors.push(`Amount mismatch for order ${order.id}: Local total ₹${orderAmount}, PayU paid ₹${paidAmount}`);
+          const mismatchMsg = `Amount mismatch for order ${order.id}: Local total ₹${orderAmount}, PayU paid ₹${paidAmount}`;
+          errors.push(mismatchMsg);
+          logger.warn(mismatchMsg, {
+            requestId: reconRequestId,
+            orderId: order.id,
+            paymentId: txnid,
+            functionName: 'runReconciliation',
+          });
           continue;
         }
 
@@ -140,6 +160,13 @@ export async function runReconciliation(): Promise<{
           correctedCount++;
 
           try {
+            logger.info('Reconciliation database transaction started', {
+              requestId: reconRequestId,
+              orderId: order.id,
+              paymentId: txnid,
+              functionName: 'runReconciliation',
+            });
+
             await prisma.$transaction(async (tx) => {
               // Re-query order state within transaction boundary to prevent race conditions
               const currentOrder = await tx.order.findUnique({
@@ -160,6 +187,13 @@ export async function runReconciliation(): Promise<{
                     data: { stockQty: { decrement: item.quantity } },
                   });
                 }
+
+                logger.info('Inventory restored and re-reserved for corrected order', {
+                  requestId: reconRequestId,
+                  orderId: order.id,
+                  paymentId: txnid,
+                  functionName: 'runReconciliation transaction',
+                });
               } else {
                 report.push(`[Corrected] Order ${order.id} was PENDING but verified as PAID on PayU. Marking paid.`);
               }
@@ -173,6 +207,22 @@ export async function runReconciliation(): Promise<{
                 },
               });
 
+              logger.info('Payment status updated in database (Reconciliation)', {
+                requestId: reconRequestId,
+                orderId: order.id,
+                paymentId: txnid,
+                paymentStatus: 'SUCCESS',
+                functionName: 'runReconciliation transaction',
+              });
+
+              logger.info('Order status updated in database (Reconciliation)', {
+                requestId: reconRequestId,
+                orderId: order.id,
+                paymentId: txnid,
+                orderStatus: 'PROCESSING',
+                functionName: 'runReconciliation transaction',
+              });
+
               // Record the webhook execution
               const webhookId = `reconciled_${payuTxn.mihpayid || txnid}`;
               await tx.processedWebhook.upsert({
@@ -184,6 +234,14 @@ export async function runReconciliation(): Promise<{
                   status: 'success',
                 },
               });
+            });
+
+            logger.info('Reconciliation transaction committed successfully', {
+              requestId: reconRequestId,
+              orderId: order.id,
+              paymentId: txnid,
+              functionName: 'runReconciliation',
+              result: 'SUCCESS',
             });
 
             // Send both emails (customer + owner) asynchronously outside transaction
@@ -220,16 +278,36 @@ export async function runReconciliation(): Promise<{
                   unitPrice: Number(item.unitPrice),
                 })),
               };
-              sendOrderEmails(emailData).catch((e: any) => console.error(`[Reconciliation] Email failed: ${e.message}`));
+              sendOrderEmails(emailData, reconRequestId).catch((e: any) => {
+                logger.error('Reconciliation confirmation emails failed to send', e, {
+                  requestId: reconRequestId,
+                  orderId: order.id,
+                  paymentId: txnid,
+                  functionName: 'runReconciliation',
+                });
+              });
             }
           } catch (err: any) {
-            errors.push(`Failed to reconcile order ${order.id}: ${err.message}`);
+            const errMsg = `Failed to reconcile order ${order.id}: ${err.message}`;
+            errors.push(errMsg);
+            logger.error(errMsg, err, {
+              requestId: reconRequestId,
+              orderId: order.id,
+              paymentId: txnid,
+              functionName: 'runReconciliation',
+              result: 'FAILURE',
+            });
           }
         }
       }
     }
   } catch (globalErr: any) {
     errors.push(`Global reconciliation error: ${globalErr.message}`);
+    logger.error('Global reconciliation run failed', globalErr, {
+      requestId: reconRequestId,
+      functionName: 'runReconciliation',
+      result: 'FAILURE',
+    });
   }
 
   const runResult = {
@@ -241,6 +319,13 @@ export async function runReconciliation(): Promise<{
   };
 
   lastReconciliationRunReport = runResult;
-  console.log(`[Reconciliation] Complete: Checked ${processedCount}, Corrected ${correctedCount}, Errors: ${errors.length}`);
+  logger.info('Reconciliation process completed', {
+    requestId: reconRequestId,
+    processedCount,
+    correctedCount,
+    errorsCount: errors.length,
+    functionName: 'runReconciliation',
+    result: 'SUCCESS',
+  });
   return runResult;
 }

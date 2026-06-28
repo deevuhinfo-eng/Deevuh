@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
 import { sendOrderEmails, type OrderEmailData } from '../auth/email.service.js';
+import { logger } from '../../utils/logger.js';
 
 const GST_RATE = 0.18; // 18% Indian GST
 
@@ -33,168 +34,271 @@ export const generatePayUHash = (
  * Verify PayU webhook signature and process successful payments.
  * Uses reverse hash verification and wraps stock deductions in prisma.$transaction.
  */
-export const processPayUWebhook = async (payload: any): Promise<boolean> => {
+export const processPayUWebhook = async (payload: any, requestId?: string): Promise<boolean> => {
   const { txnid, amount, status, hash, productinfo, firstname, email } = payload;
-  const key = process.env.PAYU_MERCHANT_KEY || '';
-  const salt = process.env.PAYU_MERCHANT_SALT || '';
+  try {
+    const key = process.env.PAYU_MERCHANT_KEY || '';
+    const salt = process.env.PAYU_MERCHANT_SALT || '';
 
-  const udf5 = payload.udf5 || '';
-  const udf4 = payload.udf4 || '';
-  const udf3 = payload.udf3 || '';
-  const udf2 = payload.udf2 || '';
-  const udf1 = payload.udf1 || '';
+    const udf5 = payload.udf5 || '';
+    const udf4 = payload.udf4 || '';
+    const udf3 = payload.udf3 || '';
+    const udf2 = payload.udf2 || '';
+    const udf1 = payload.udf1 || '';
 
-  // PayU standard reverse hash format (without additional charges prepended):
-  // salt|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
-  const baseSequence = `${status}||||||${udf5}|${udf4}|${udf3}|${udf2}|${udf1}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+    logger.info('PayU signature verification started', {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
+    });
 
-  let computedHash = '';
-  if (payload.additional_charges) {
-    const seqWithCharges = `${payload.additional_charges}|${salt}|${baseSequence}`;
-    computedHash = crypto.createHash('sha512').update(seqWithCharges).digest('hex');
-  }
+    // PayU standard reverse hash format (without additional charges prepended):
+    // salt|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
+    const baseSequence = `${status}||||||${udf5}|${udf4}|${udf3}|${udf2}|${udf1}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
 
-  if (computedHash !== hash) {
-    const seqWithoutCharges = `${salt}|${baseSequence}`;
-    computedHash = crypto.createHash('sha512').update(seqWithoutCharges).digest('hex');
-  }
+    let computedHash = '';
+    if (payload.additional_charges) {
+      const seqWithCharges = `${payload.additional_charges}|${salt}|${baseSequence}`;
+      computedHash = crypto.createHash('sha512').update(seqWithCharges).digest('hex');
+    }
 
-  if (computedHash !== hash) {
-    throw new Error('Tampered payment signature detected. Webhook payload rejected.');
-  }
+    if (computedHash !== hash) {
+      const seqWithoutCharges = `${salt}|${baseSequence}`;
+      computedHash = crypto.createHash('sha512').update(seqWithoutCharges).digest('hex');
+    }
 
-  const webhookId = String(payload.mihpayid || `${txnid}_${status}`);
+    if (computedHash !== hash) {
+      const err = new Error('Tampered payment signature detected. Webhook payload rejected.');
+      logger.error('PayU signature verification failed', err, {
+        requestId,
+        paymentId: txnid,
+        functionName: 'processPayUWebhook',
+        result: 'FAILURE',
+      });
+      throw err;
+    }
 
-  // Outer fast check
-  const alreadyProcessed = await prisma.processedWebhook.findUnique({
-    where: { webhookId },
-  });
-  if (alreadyProcessed) {
-    console.log(`[PayU Webhook] Duplicate webhook for txnid ${txnid} (webhookId: ${webhookId}) — already processed.`);
-    return alreadyProcessed.status === 'success';
-  }
+    logger.info('PayU signature verification succeeded', {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
+      result: 'SUCCESS',
+    });
 
-  // Atomically process webhook and order status
-  const isSuccess = await prisma.$transaction(async (tx) => {
-    // Re-check inside transaction to prevent concurrent race conditions
-    const exists = await tx.processedWebhook.findUnique({
+    const webhookId = String(payload.mihpayid || `${txnid}_${status}`);
+
+    // Outer fast check
+    const alreadyProcessed = await prisma.processedWebhook.findUnique({
       where: { webhookId },
     });
-    if (exists) {
-      return exists.status === 'success';
+    if (alreadyProcessed) {
+      logger.info('Duplicate webhook processing bypassed (already processed)', {
+        requestId,
+        paymentId: txnid,
+        functionName: 'processPayUWebhook',
+        result: 'SUCCESS',
+      });
+      return alreadyProcessed.status === 'success';
     }
 
-    const order = await tx.order.findUnique({
-      where: { paymentGatewayTxnId: txnid },
-      include: { items: true },
+    logger.info('Webhook database transaction started', {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
     });
 
-    if (!order) {
-      throw new Error(`Order with transaction ID ${txnid} not found.`);
-    }
-
-    // Verify amount matches
-    const orderAmount = Number(order.finalAmount);
-    const paidAmount = Number(amount);
-    if (Math.abs(orderAmount - paidAmount) > 0.01) {
-      throw new Error(`Payment amount mismatch. Order finalAmount: ${orderAmount}, Paid amount: ${paidAmount}`);
-    }
-
-    // Skip if order was already successfully paid
-    if (order.paymentStatus === 'SUCCESS') {
-      await tx.processedWebhook.create({
-        data: { webhookId, paymentId: txnid, status: 'success' },
+    // Atomically process webhook and order status
+    const isSuccess = await prisma.$transaction(async (tx) => {
+      // Re-check inside transaction to prevent concurrent race conditions
+      const exists = await tx.processedWebhook.findUnique({
+        where: { webhookId },
       });
-      return true;
-    }
-
-    // Skip if order was already marked failed
-    if (order.paymentStatus === 'FAILED') {
-      await tx.processedWebhook.create({
-        data: { webhookId, paymentId: txnid, status: 'failure' },
-      });
-      return false;
-    }
-
-    if (status === 'success') {
-      await tx.order.update({
-        where: { paymentGatewayTxnId: txnid },
-        data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
-      });
-
-      await tx.processedWebhook.create({
-        data: { webhookId, paymentId: txnid, status: 'success' },
-      });
-
-      return true;
-    }
-
-    if (status === 'failure' || status === 'failed') {
-      await tx.order.update({
-        where: { paymentGatewayTxnId: txnid },
-        data: { paymentStatus: 'FAILED', orderStatus: 'CANCELLED' },
-      });
-
-      // Restore stock since order failed
-      for (const item of order.items) {
-        await tx.productVariant.update({
-          where: { id: item.productVariantId },
-          data: { stockQty: { increment: item.quantity } },
-        });
+      if (exists) {
+        return exists.status === 'success';
       }
 
-      await tx.processedWebhook.create({
-        data: { webhookId, paymentId: txnid, status: 'failure' },
+      const order = await tx.order.findUnique({
+        where: { paymentGatewayTxnId: txnid },
+        include: { items: true },
       });
 
+      if (!order) {
+        throw new Error(`Order with transaction ID ${txnid} not found.`);
+      }
+
+      // Verify amount matches
+      const orderAmount = Number(order.finalAmount);
+      const paidAmount = Number(amount);
+      if (Math.abs(orderAmount - paidAmount) > 0.01) {
+        throw new Error(`Payment amount mismatch. Order finalAmount: ${orderAmount}, Paid amount: ${paidAmount}`);
+      }
+
+      // Skip if order was already successfully paid
+      if (order.paymentStatus === 'SUCCESS') {
+        await tx.processedWebhook.create({
+          data: { webhookId, paymentId: txnid, status: 'success' },
+        });
+        return true;
+      }
+
+      // Skip if order was already marked failed
+      if (order.paymentStatus === 'FAILED') {
+        await tx.processedWebhook.create({
+          data: { webhookId, paymentId: txnid, status: 'failure' },
+        });
+        return false;
+      }
+
+      if (status === 'success') {
+        await tx.order.update({
+          where: { paymentGatewayTxnId: txnid },
+          data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+        });
+
+        logger.info('Payment status updated in database', {
+          requestId,
+          paymentId: txnid,
+          orderId: order.id,
+          paymentStatus: 'SUCCESS',
+          functionName: 'processPayUWebhook transaction',
+        });
+
+        logger.info('Order status updated in database', {
+          requestId,
+          paymentId: txnid,
+          orderId: order.id,
+          orderStatus: 'PROCESSING',
+          functionName: 'processPayUWebhook transaction',
+        });
+
+        await tx.processedWebhook.create({
+          data: { webhookId, paymentId: txnid, status: 'success' },
+        });
+
+        return true;
+      }
+
+      if (status === 'failure' || status === 'failed') {
+        await tx.order.update({
+          where: { paymentGatewayTxnId: txnid },
+          data: { paymentStatus: 'FAILED', orderStatus: 'CANCELLED' },
+        });
+
+        logger.info('Payment status updated in database', {
+          requestId,
+          paymentId: txnid,
+          orderId: order.id,
+          paymentStatus: 'FAILED',
+          functionName: 'processPayUWebhook transaction',
+        });
+
+        logger.info('Order status updated in database', {
+          requestId,
+          paymentId: txnid,
+          orderId: order.id,
+          orderStatus: 'CANCELLED',
+          functionName: 'processPayUWebhook transaction',
+        });
+
+        // Restore stock since order failed
+        for (const item of order.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { increment: item.quantity } },
+          });
+        }
+
+        logger.info('Inventory restored for failed/cancelled order', {
+          requestId,
+          paymentId: txnid,
+          orderId: order.id,
+          functionName: 'processPayUWebhook transaction',
+          items: order.items.map(item => ({
+            variantId: item.productVariantId,
+            quantity: item.quantity,
+          })),
+        });
+
+        await tx.processedWebhook.create({
+          data: { webhookId, paymentId: txnid, status: 'failure' },
+        });
+
+        return false;
+      }
+
       return false;
-    }
+    });
 
-    return false;
-  });
+    logger.info('Webhook transaction committed successfully', {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
+      result: 'SUCCESS',
+    });
 
-  // Send both emails (customer + owner) asynchronously on success
-  if (isSuccess && status === 'success') {
-    const updatedOrder = await prisma.order.findUnique({
-      where: { paymentGatewayTxnId: txnid },
-      include: {
-        user: true,
-        items: {
-          include: {
-            variant: {
-              include: { product: true },
+    // Send both emails (customer + owner) asynchronously on success
+    if (isSuccess && status === 'success') {
+      const updatedOrder = await prisma.order.findUnique({
+        where: { paymentGatewayTxnId: txnid },
+        include: {
+          user: true,
+          items: {
+            include: {
+              variant: {
+                include: { product: true },
+              },
             },
           },
         },
-      },
+      });
+
+      if (updatedOrder?.user?.email) {
+        const emailData: OrderEmailData = {
+          orderId: updatedOrder.id,
+          customerName: updatedOrder.shippingName,
+          customerEmail: updatedOrder.user.email,
+          customerPhone: updatedOrder.shippingPhone,
+          shippingAddress: updatedOrder.shippingAddress,
+          totalAmount: Number(updatedOrder.totalAmount),
+          discountAmount: Number(updatedOrder.discountAmount),
+          gstAmount: Number(updatedOrder.gstAmount),
+          finalAmount: Number(updatedOrder.finalAmount),
+          paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || txnid,
+          paymentMethod: 'PayU',
+          items: updatedOrder.items.map((item: any) => ({
+            productTitle: item.variant?.product?.title || 'Tailored Garment',
+            size: item.variant?.size || 'Custom',
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+          })),
+        };
+
+        sendOrderEmails(emailData, requestId).catch((err: any) => {
+          logger.error('Order email orchestration failed', err, {
+            requestId,
+            orderId: updatedOrder.id,
+            paymentId: txnid,
+            functionName: 'processPayUWebhook',
+          });
+        });
+      }
+    }
+
+    logger.info('PayU webhook processing completed', {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
+      result: 'SUCCESS',
     });
 
-    if (updatedOrder?.user?.email) {
-      const emailData: OrderEmailData = {
-        orderId: updatedOrder.id,
-        customerName: updatedOrder.shippingName,
-        customerEmail: updatedOrder.user.email,
-        customerPhone: updatedOrder.shippingPhone,
-        shippingAddress: updatedOrder.shippingAddress,
-        totalAmount: Number(updatedOrder.totalAmount),
-        discountAmount: Number(updatedOrder.discountAmount),
-        gstAmount: Number(updatedOrder.gstAmount),
-        finalAmount: Number(updatedOrder.finalAmount),
-        paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || txnid,
-        paymentMethod: 'PayU',
-        items: updatedOrder.items.map((item: any) => ({
-          productTitle: item.variant?.product?.title || 'Tailored Garment',
-          size: item.variant?.size || 'Custom',
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-        })),
-      };
-
-      sendOrderEmails(emailData).catch((err: any) => {
-        console.error('[Order Email Error]', err.message);
-      });
-    }
+    return isSuccess;
+  } catch (error: any) {
+    logger.error('PayU webhook processing failed at service level', error, {
+      requestId,
+      paymentId: txnid,
+      functionName: 'processPayUWebhook',
+      result: 'FAILURE',
+    });
+    throw error;
   }
-
-  return isSuccess;
 };

@@ -5,6 +5,8 @@ import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { calculateGST, generatePayUHash, processPayUWebhook } from './payments.service.js';
+import { logger } from '../../utils/logger.js';
+import { CorrelatedRequest } from '../../middleware/correlation.js';
 
 const router = Router();
 
@@ -40,15 +42,29 @@ router.post(
   '/create-order',
   authMiddleware,
   validateRequest(checkoutSchema),
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest & CorrelatedRequest, res: Response): Promise<void> => {
+    const userId = req.user?.id;
     try {
-      const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ status: 'error', message: 'Authentication required.' });
         return;
       }
 
+      logger.info('Checkout process started', {
+        requestId: req.requestId,
+        userId,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+      });
+
       if (!PAYU_ENABLED) {
+        logger.warn('Checkout failed: Online payments disabled', {
+          requestId: req.requestId,
+          userId,
+          endpoint: 'POST /api/checkout/create-order',
+          functionName: 'create-order route',
+          result: 'FAILURE',
+        });
         res.status(400).json({
           status: 'error',
           message: 'Online payments are currently unavailable. Cash on Delivery is not supported.',
@@ -71,6 +87,13 @@ router.post(
       });
 
       if (!cart || cart.items.length === 0) {
+        logger.warn('Checkout failed: Cart is empty', {
+          requestId: req.requestId,
+          userId,
+          endpoint: 'POST /api/checkout/create-order',
+          functionName: 'create-order route',
+          result: 'FAILURE',
+        });
         res.status(400).json({ status: 'error', message: 'Cart is empty.' });
         return;
       }
@@ -82,6 +105,14 @@ router.post(
       }
 
       const txnid = `DEEVUH_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
+
+      logger.info('Checkout database transaction started', {
+        requestId: req.requestId,
+        userId,
+        paymentId: txnid,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+      });
 
       // SINGLE ATOMIC TRANSACTION:
       // 1. Validate coupon if provided
@@ -132,6 +163,18 @@ router.post(
           }
         }
 
+        logger.info('Inventory reserved for checkout', {
+          requestId: req.requestId,
+          userId,
+          paymentId: txnid,
+          endpoint: 'POST /api/checkout/create-order',
+          functionName: 'create-order transaction',
+          items: cart.items.map(item => ({
+            variantId: item.productVariantId,
+            quantity: item.quantity,
+          })),
+        });
+
         // Step 2: Create order
         const createdOrder = await tx.order.create({
           data: {
@@ -157,6 +200,15 @@ router.post(
           },
         });
 
+        logger.info('Order created in database', {
+          requestId: req.requestId,
+          userId,
+          orderId: createdOrder.id,
+          paymentId: txnid,
+          endpoint: 'POST /api/checkout/create-order',
+          functionName: 'create-order transaction',
+        });
+
         // Step 3: Increment coupon usage
         if (couponId) {
           await tx.coupon.update({
@@ -174,6 +226,16 @@ router.post(
         return { order: createdOrder, finalAmount, gstAmount, discountAmount };
       });
 
+      logger.info('Checkout transaction committed successfully', {
+        requestId: req.requestId,
+        userId,
+        orderId: order.id,
+        paymentId: txnid,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+        result: 'SUCCESS',
+      });
+
       const user = await prisma.user.findUnique({ where: { id: userId } });
       const payuHash = generatePayUHash(
         txnid,
@@ -182,6 +244,16 @@ router.post(
         shippingName,
         user?.email || ''
       );
+
+      logger.info('Redirecting customer to PayU payment gateway', {
+        requestId: req.requestId,
+        userId,
+        orderId: order.id,
+        paymentId: txnid,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+        result: 'SUCCESS',
+      });
 
       res.status(201).json({
         status: 'success',
@@ -203,7 +275,24 @@ router.post(
           summary: { totalAmount, discountAmount, gstAmount, finalAmount },
         },
       });
+
+      logger.info('Checkout initialization completed', {
+        requestId: req.requestId,
+        userId,
+        orderId: order.id,
+        paymentId: txnid,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+        result: 'SUCCESS',
+      });
     } catch (error: any) {
+      logger.error('Checkout process failed', error, {
+        requestId: req.requestId,
+        userId,
+        endpoint: 'POST /api/checkout/create-order',
+        functionName: 'create-order route',
+        result: 'FAILURE',
+      });
       const badRequestMessages = [
         'Coupon is invalid or expired',
         'Coupon usage limit reached',
@@ -222,11 +311,31 @@ router.post(
  */
 router.post('/success', async (req: Request, res: Response): Promise<void> => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
+  const correlatedReq = req as CorrelatedRequest;
+  logger.info('PayU success browser callback received', {
+    requestId: correlatedReq.requestId,
+    paymentId: req.body.txnid,
+    endpoint: 'POST /api/checkout/success',
+    functionName: '/success route',
+  });
   try {
-    await processPayUWebhook(req.body);
+    await processPayUWebhook(req.body, correlatedReq.requestId);
+    logger.info('Success browser callback processing completed', {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/success',
+      functionName: '/success route',
+      result: 'SUCCESS',
+    });
     res.redirect(`${frontendUrl}/dashboard?payment=success`);
   } catch (error: any) {
-    console.error('[PayU Success Redirect Error]', error.message);
+    logger.error('Success browser callback processing failed', error, {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/success',
+      functionName: '/success route',
+      result: 'FAILURE',
+    });
     res.redirect(`${frontendUrl}/checkout?payment=error&reason=${encodeURIComponent(error.message)}`);
   }
 });
@@ -237,11 +346,31 @@ router.post('/success', async (req: Request, res: Response): Promise<void> => {
  */
 router.post('/failure', async (req: Request, res: Response): Promise<void> => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
+  const correlatedReq = req as CorrelatedRequest;
+  logger.info('PayU failure browser callback received', {
+    requestId: correlatedReq.requestId,
+    paymentId: req.body.txnid,
+    endpoint: 'POST /api/checkout/failure',
+    functionName: '/failure route',
+  });
   try {
-    await processPayUWebhook(req.body);
+    await processPayUWebhook(req.body, correlatedReq.requestId);
+    logger.info('Failure browser callback processing completed', {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/failure',
+      functionName: '/failure route',
+      result: 'SUCCESS',
+    });
     res.redirect(`${frontendUrl}/checkout?payment=failure`);
   } catch (error: any) {
-    console.error('[PayU Failure Redirect Error]', error.message);
+    logger.error('Failure browser callback processing failed', error, {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/failure',
+      functionName: '/failure route',
+      result: 'FAILURE',
+    });
     res.redirect(`${frontendUrl}/checkout?payment=failure`);
   }
 });
@@ -252,16 +381,41 @@ router.post('/failure', async (req: Request, res: Response): Promise<void> => {
  * Only active when PayU is enabled.
  */
 router.post('/webhooks/payu', async (req: Request, res: Response): Promise<void> => {
+  const correlatedReq = req as CorrelatedRequest;
+  logger.info('PayU server webhook received', {
+    requestId: correlatedReq.requestId,
+    paymentId: req.body.txnid,
+    endpoint: 'POST /api/checkout/webhooks/payu',
+    functionName: '/webhooks/payu route',
+  });
   if (!PAYU_ENABLED) {
+    logger.warn('PayU server webhook received but PayU is disabled', {
+      requestId: correlatedReq.requestId,
+      endpoint: 'POST /api/checkout/webhooks/payu',
+      functionName: '/webhooks/payu route',
+    });
     res.status(200).json({ status: 'ok', message: 'PayU not active.' });
     return;
   }
 
   try {
-    const result = await processPayUWebhook(req.body);
+    const result = await processPayUWebhook(req.body, correlatedReq.requestId);
+    logger.info('PayU server webhook processing completed', {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/webhooks/payu',
+      functionName: '/webhooks/payu route',
+      result: result ? 'SUCCESS' : 'FAILURE',
+    });
     res.status(200).json({ status: result ? 'success' : 'failed' });
   } catch (error: any) {
-    console.error('[PayU Webhook Error]', error.message);
+    logger.error('PayU server webhook processing failed', error, {
+      requestId: correlatedReq.requestId,
+      paymentId: req.body.txnid,
+      endpoint: 'POST /api/checkout/webhooks/payu',
+      functionName: '/webhooks/payu route',
+      result: 'FAILURE',
+    });
     res.status(400).json({ status: 'error', message: error.message });
   }
 });
