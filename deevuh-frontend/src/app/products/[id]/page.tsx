@@ -2019,7 +2019,7 @@ export default function ProductDetailPage({ params }: PageProps) {
         </div>
       </footer>
 
-      {showSizeGuide && ["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit"].includes(product.id) && (
+      {showSizeGuide && ["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit", "brown-coordset"].includes(product.id) && (
         <div
           style={{
             position: "fixed",
@@ -2225,19 +2225,28 @@ export default function ProductDetailPage({ params }: PageProps) {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { size: "XS", length: "19\"", bust: "30\"", waist: "28\"" },
-                          { size: "S", length: "20\"", bust: "32\"", waist: "30\"" },
-                          { size: "M", length: "20.5\"", bust: "34\"", waist: "32\"" },
-                          { size: "L", length: "21\"", bust: "36\"", waist: "34\"" },
-                        ].map((row) => (
-                          <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
-                            <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          const rows = [
+                            { size: "XS", length: "19\"", bust: "30\"", waist: "28\"" },
+                            { size: "S", length: "20\"", bust: "32\"", waist: "30\"" },
+                            { size: "M", length: "20.5\"", bust: "34\"", waist: "32\"" },
+                            { size: "L", length: "21\"", bust: "36\"", waist: "34\"" },
+                          ];
+                          if (product.id === "brown-coordset") {
+                            rows.push(
+                              { size: "XL", length: "21.5\"", bust: "38\"", waist: "36\"" },
+                              { size: "XXL", length: "22\"", bust: "40\"", waist: "38\"" }
+                            );
+                          }
+                          return rows.map((row) => (
+                            <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                              <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.bust}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
+                            </tr>
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -2276,19 +2285,29 @@ export default function ProductDetailPage({ params }: PageProps) {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { size: "XS", waist: "26\"", hip: "34\"", length: "40\"" },
-                          { size: "S", waist: "28\"", hip: "36\"", length: "40\"" },
-                          { size: "M", waist: "30\"", hip: "38\"", length: "40\"" },
-                          { size: "L", waist: "32\"", hip: "40\"", length: "40\"" },
-                        ].map((row) => (
-                          <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
-                            <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.hip}</td>
-                            <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          const rows = product.id === "brown-coordset" ? [
+                            { size: "XS", waist: "26\"", hip: "34\"", length: "41\"" },
+                            { size: "S", waist: "28\"", hip: "36\"", length: "41\"" },
+                            { size: "M", waist: "30\"", hip: "38\"", length: "41\"" },
+                            { size: "L", waist: "32\"", hip: "40\"", length: "41\"" },
+                            { size: "XL", waist: "34\"", hip: "42\"", length: "41\"" },
+                            { size: "XXL", waist: "36\"", hip: "44\"", length: "41\"" },
+                          ] : [
+                            { size: "XS", waist: "26\"", hip: "34\"", length: "40\"" },
+                            { size: "S", waist: "28\"", hip: "36\"", length: "40\"" },
+                            { size: "M", waist: "30\"", hip: "38\"", length: "40\"" },
+                            { size: "L", waist: "32\"", hip: "40\"", length: "40\"" },
+                          ];
+                          return rows.map((row) => (
+                            <tr key={row.size} style={{ color: "var(--color-charcoal)" }}>
+                              <td style={{ padding: "10px 6px", fontWeight: 700, border: "1px solid var(--color-outline-variant)" }}>{row.size}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.waist}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.hip}</td>
+                              <td style={{ padding: "10px 6px", border: "1px solid var(--color-outline-variant)" }}>{row.length}</td>
+                            </tr>
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>
