@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Serif, Inter } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 const notoSerif = Noto_Serif({
   variable: "--font-serif",
@@ -39,6 +40,7 @@ export default function RootLayout({
           <CartProvider>
             {children}
             <CartDrawer />
+            <Analytics />
           </CartProvider>
         </GoogleOAuthProvider>
       </body>

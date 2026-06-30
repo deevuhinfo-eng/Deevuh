@@ -1,23 +1,53 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
+  
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Criteria checks
+  const criteria = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[@$!%*?&#.]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(criteria).every(Boolean);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
+
+    if (!isPasswordValid) {
+      setError('Password does not meet strength requirements.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const res = await api.post('/auth/forgot-password', { email });
-      setMessage(res.message || 'If this email is registered, we have sent a password reset link.');
+      const res = await api.post('/auth/forgot-password', { email, password });
+      setMessage(res.message || 'Your password has been successfully reset. Redirecting to login...');
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(msg);
@@ -25,6 +55,25 @@ export default function ForgotPasswordPage() {
       setIsLoading(false);
     }
   };
+
+  const renderCriterion = (label: string, met: boolean) => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '12px',
+      color: met ? 'var(--color-success)' : 'var(--color-on-surface-variant)',
+      transition: 'color 0.2s ease',
+    }}>
+      <span style={{
+        fontSize: '14px',
+        fontWeight: 'bold',
+      }}>
+        {met ? '✓' : '•'}
+      </span>
+      <span>{label}</span>
+    </div>
+  );
 
   return (
     <div style={{
@@ -66,7 +115,7 @@ export default function ForgotPasswordPage() {
           marginBottom: '8px',
           textAlign: 'center',
         }}>
-          Forgot Password
+          Reset Password
         </h1>
         <p style={{
           fontSize: '14px',
@@ -74,7 +123,7 @@ export default function ForgotPasswordPage() {
           textAlign: 'center',
           marginBottom: '32px',
         }}>
-          Enter your email address to request a secure password reset link.
+          Enter your registered email and choose a secure new password.
         </p>
 
         {error && (
@@ -120,13 +169,66 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-on-surface-variant)', marginBottom: '6px' }}>
+              New Password
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              required
+              className="input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Criteria checklist */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            backgroundColor: 'var(--color-surface-container)',
+            padding: '12px 16px',
+            border: '1px solid var(--color-outline-variant)',
+          }}>
+            {renderCriterion('At least 8 characters', criteria.length)}
+            {renderCriterion('One uppercase letter (A-Z)', criteria.uppercase)}
+            {renderCriterion('One lowercase letter (a-z)', criteria.lowercase)}
+            {renderCriterion('One numeric digit (0-9)', criteria.number)}
+            {renderCriterion('One special character (@$!%*?&#.)', criteria.special)}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-on-surface-variant)', marginBottom: '6px' }}>
+              Confirm Password
+            </label>
+            <input
+              id="confirm-password"
+              type="password"
+              required
+              className="input"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !isPasswordValid || password !== confirmPassword}
             className="btn btn-primary"
-            style={{ marginTop: '8px', width: '100%', opacity: isLoading ? 0.7 : 1 }}
+            style={{
+              marginTop: '8px',
+              width: '100%',
+              opacity: (isLoading || !isPasswordValid || password !== confirmPassword) ? 0.6 : 1,
+              cursor: (isLoading || !isPasswordValid || password !== confirmPassword) ? 'not-allowed' : 'pointer'
+            }}
           >
-            {isLoading ? 'Sending...' : 'Send Reset Link'}
+            {isLoading ? 'Resetting...' : 'Reset Password'}
           </button>
         </form>
 

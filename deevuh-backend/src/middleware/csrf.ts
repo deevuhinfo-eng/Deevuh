@@ -14,19 +14,14 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
   }
 
   const excludedPaths = [
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/auth/google',
     '/api/checkout/webhooks/payu',
     '/api/payments/webhooks/payu',
-    '/api/auth/reset-password',
-    '/api/auth/forgot-password',
     '/api/checkout/success',
     '/api/checkout/failure',
   ];
 
   const cleanPath = req.path.replace(/\/$/, '');
-  if (excludedPaths.some((p) => cleanPath === p || cleanPath.endsWith(p))) {
+  if (excludedPaths.some((p) => cleanPath === p)) {
     return next();
   }
   // Get token from cookie (non-HttpOnly)

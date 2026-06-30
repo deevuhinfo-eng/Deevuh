@@ -4,8 +4,7 @@ import { z } from 'zod';
 import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
-import { calculateGST } from './payments.service.js';
-import { sendOrderConfirmationEmail } from '../auth/email.service.js';
+import { calculateGST, generatePayUHash, processPayUWebhook } from './payments.service.js';
 
 const router = Router();
 
@@ -82,44 +81,40 @@ router.post(
         totalAmount += Number(item.variant.price) * item.quantity;
       }
 
-      // Validate coupon (read-only, before transaction)
-      let discountAmount = 0;
-      let couponId: string | null = null;
-      if (couponCode) {
-        const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
-        if (!coupon || !coupon.isActive || new Date() > coupon.expiresAt) {
-          res.status(400).json({ status: 'error', message: 'Coupon is invalid or expired.' });
-          return;
-        }
-        if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
-          res.status(400).json({ status: 'error', message: 'Coupon usage limit reached.' });
-          return;
-        }
-        if (coupon.minPurchase && totalAmount < Number(coupon.minPurchase)) {
-          res.status(400).json({
-            status: 'error',
-            message: `Minimum purchase of ₹${coupon.minPurchase} required for this coupon.`,
-          });
-          return;
-        }
-
-        discountAmount =
-          coupon.discountType === 'percentage'
-            ? Math.round((totalAmount * Number(coupon.discountValue)) / 100 * 100) / 100
-            : Number(coupon.discountValue);
-        couponId = coupon.id;
-      }
-
-      const finalAmount = Math.round((totalAmount - discountAmount) * 100) / 100;
-      const gstAmount = calculateGST(finalAmount);
       const txnid = `DEEVUH_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
 
       // SINGLE ATOMIC TRANSACTION:
-      // 1. Reserve stock
-      // 2. Create order
-      // 3. Increment coupon usage
-      // 4. Convert cart
-      const order = await prisma.$transaction(async (tx) => {
+      // 1. Validate coupon if provided
+      // 2. Reserve stock
+      // 3. Create order
+      // 4. Increment coupon usage
+      // 5. Convert cart
+      const { order, finalAmount, gstAmount, discountAmount } = await prisma.$transaction(async (tx) => {
+        let discountAmount = 0;
+        let couponId: string | null = null;
+
+        if (couponCode) {
+          const coupon = await tx.coupon.findUnique({ where: { code: couponCode } });
+          if (!coupon || !coupon.isActive || new Date() > coupon.expiresAt) {
+            throw new Error('Coupon is invalid or expired.');
+          }
+          if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+            throw new Error('Coupon usage limit reached.');
+          }
+          if (coupon.minPurchase && totalAmount < Number(coupon.minPurchase)) {
+            throw new Error(`Minimum purchase of ₹${coupon.minPurchase} required for this coupon.`);
+          }
+
+          discountAmount =
+            coupon.discountType === 'percentage'
+              ? Math.round((totalAmount * Number(coupon.discountValue)) / 100 * 100) / 100
+              : Number(coupon.discountValue);
+          couponId = coupon.id;
+        }
+
+        const finalAmount = Math.round((totalAmount - discountAmount) * 100) / 100;
+        const gstAmount = calculateGST(finalAmount);
+
         // Step 1: Reserve stock atomically
         for (const item of cart.items) {
           const updated = await tx.productVariant.updateMany({
@@ -176,10 +171,9 @@ router.post(
           data: { status: 'converted' },
         });
 
-        return createdOrder;
+        return { order: createdOrder, finalAmount, gstAmount, discountAmount };
       });
 
-      const { generatePayUHash } = await import('./payments.service.js');
       const user = await prisma.user.findUnique({ where: { id: userId } });
       const payuHash = generatePayUHash(
         txnid,
@@ -210,7 +204,14 @@ router.post(
         },
       });
     } catch (error: any) {
-      res.status(500).json({ status: 'error', message: error.message });
+      const badRequestMessages = [
+        'Coupon is invalid or expired',
+        'Coupon usage limit reached',
+        'Minimum purchase of',
+        'Insufficient stock for'
+      ];
+      const isBadRequest = badRequestMessages.some(msg => error.message.includes(msg));
+      res.status(isBadRequest ? 400 : 500).json({ status: 'error', message: error.message });
     }
   }
 );
@@ -222,12 +223,11 @@ router.post(
 router.post('/success', async (req: Request, res: Response): Promise<void> => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
   try {
-    const { processPayUWebhook } = await import('./payments.service.js');
     await processPayUWebhook(req.body);
     res.redirect(`${frontendUrl}/dashboard?payment=success`);
   } catch (error: any) {
     console.error('[PayU Success Redirect Error]', error.message);
-    res.redirect(`${frontendUrl}/dashboard?payment=success`);
+    res.redirect(`${frontendUrl}/checkout?payment=error&reason=${encodeURIComponent(error.message)}`);
   }
 });
 
@@ -238,7 +238,6 @@ router.post('/success', async (req: Request, res: Response): Promise<void> => {
 router.post('/failure', async (req: Request, res: Response): Promise<void> => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
   try {
-    const { processPayUWebhook } = await import('./payments.service.js');
     await processPayUWebhook(req.body);
     res.redirect(`${frontendUrl}/checkout?payment=failure`);
   } catch (error: any) {
@@ -259,7 +258,6 @@ router.post('/webhooks/payu', async (req: Request, res: Response): Promise<void>
   }
 
   try {
-    const { processPayUWebhook } = await import('./payments.service.js');
     const result = await processPayUWebhook(req.body);
     res.status(200).json({ status: result ? 'success' : 'failed' });
   } catch (error: any) {

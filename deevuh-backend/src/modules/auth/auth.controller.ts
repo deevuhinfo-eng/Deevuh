@@ -14,9 +14,10 @@ const SALT_ROUNDS = 12;
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
 
     // Check admin_users first
-    const adminUser = await prisma.adminUser.findUnique({ where: { email } });
+    const adminUser = await prisma.adminUser.findUnique({ where: { email: normalizedEmail } });
     if (adminUser) {
       const isValid = await bcrypt.compare(password, adminUser.passwordHash);
       if (!isValid) {
@@ -40,7 +41,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check regular users
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.password) {
       await logAuthEvent(user?.id || null, 'failed_login', req);
       res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
@@ -73,8 +74,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password, phone } = req.body;
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       res.status(409).json({ status: 'error', message: 'Email already registered.' });
       return;
@@ -82,7 +84,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, phone },
+      data: { name, email: normalizedEmail, password: hashedPassword, phone },
     });
 
     const vToken = await generateVerificationToken(user.email);
@@ -147,7 +149,20 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, name: true, email: true, phone: true, avatar: true, authProvider: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        authProvider: true,
+        createdAt: true,
+        chest: true,
+        waist: true,
+        shoulder: true,
+        height: true,
+        fit: true,
+      },
     });
     res.status(200).json({ status: 'success', data: user });
   } catch (error: any) {
@@ -157,29 +172,53 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ status: 'error', message: 'Email is required.' });
+    const { email, password, phone } = req.body;
+    if (!email || !password) {
+      res.status(400).json({ status: 'error', message: 'Email and password are required.' });
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Return generic success to prevent user enumeration
-      res.status(200).json({
-        status: 'success',
-        message: 'If this email is registered, we have sent a password reset link.'
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Password strength check (backend validation)
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[@$!%*?&#.]/.test(password);
+    if (password.length < 8 || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Password does not meet strength requirements: minimum 8 characters, containing uppercase, lowercase, number, and special character.'
       });
       return;
     }
 
-    const token = await generatePasswordResetToken(user.email);
-    await sendPasswordResetEmail(user.email, token);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) {
+      res.status(404).json({ status: 'error', message: 'No account found with this email address.' });
+      return;
+    }
 
-    res.status(200).json({
-      status: 'success',
-      message: 'If this email is registered, we have sent a password reset link.'
+    // Security: If phone is set on the user account, require it to match
+    if (user.phone) {
+      if (!phone || phone.trim() !== user.phone.trim()) {
+        res.status(400).json({ status: 'error', message: 'Verification details (phone number) do not match.' });
+        return;
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Update user password and increment tokenVersion to revoke old sessions
+    await prisma.user.update({
+      where: { email: normalizedEmail },
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 }
+      }
     });
+
+    res.status(200).json({ status: 'success', message: 'Your password has been successfully reset.' });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }
@@ -382,6 +421,38 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     await prisma.emailVerificationToken.delete({ where: { id: verification.id } });
 
     res.status(200).json({ status: 'success', message: 'Email verified successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const updateSizing = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ status: 'error', message: 'Not authenticated.' });
+      return;
+    }
+
+    const { chest, waist, shoulder, height, fit } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { chest, waist, shoulder, height, fit },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        chest: true,
+        waist: true,
+        shoulder: true,
+        height: true,
+        fit: true,
+      }
+    });
+
+    res.status(200).json({ status: 'success', data: updatedUser });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

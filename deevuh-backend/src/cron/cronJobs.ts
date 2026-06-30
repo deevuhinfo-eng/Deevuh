@@ -1,5 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../config/database.js';
+import { runReconciliation } from '../modules/payments/reconciliation.service.js';
+import { retryFailedEmails } from '../modules/payments/email-retry.service.js';
 
 const ABANDONED_CART_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 const UNPAID_ORDER_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
@@ -34,16 +36,39 @@ const cartRecoveryJob = cron.schedule('0 */6 * * *', async () => {
 const unpaidOrderCancelJob = cron.schedule('*/15 * * * *', async () => {
   try {
     const threshold = new Date(Date.now() - UNPAID_ORDER_THRESHOLD_MS);
-    const result = await prisma.order.updateMany({
+    const ordersToCancel = await prisma.order.findMany({
       where: {
         paymentStatus: 'PENDING',
         createdAt: { lte: threshold },
         orderStatus: { not: 'CANCELLED' },
       },
-      data: { orderStatus: 'CANCELLED' },
+      include: {
+        items: true,
+      },
     });
-    if (result.count > 0) {
-      console.log(`[CRON] Unpaid Order Cancel: Cancelled ${result.count} unpaid order(s).`);
+
+    for (const order of ordersToCancel) {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            orderStatus: 'CANCELLED',
+            paymentStatus: 'FAILED',
+          },
+        });
+
+        for (const item of order.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { increment: item.quantity } },
+          });
+        }
+      });
+      console.log(`[CRON] Unpaid Order Cancel: Cancelled order ${order.id} and restored stock.`);
+    }
+
+    if (ordersToCancel.length > 0) {
+      console.log(`[CRON] Unpaid Order Cancel: Cancelled ${ordersToCancel.length} unpaid order(s).`);
     }
   } catch (error) {
     console.error('[CRON] Unpaid Order Cancel Error:', error);
@@ -73,11 +98,37 @@ const lowStockAlertJob = cron.schedule('0 */6 * * *', async () => {
   }
 });
 
+/**
+ * Payment Reconciliation Cron — Every hour
+ * Scans for paid but stuck orders and corrects them.
+ */
+const reconciliationJob = cron.schedule('0 * * * *', async () => {
+  try {
+    await runReconciliation();
+  } catch (error) {
+    console.error('[CRON] Payment Reconciliation Error:', error);
+  }
+});
+
+/**
+ * Email Retry Cron — Every 5 minutes
+ * Retries failed email deliveries with exponential backoff.
+ */
+const emailRetryJob = cron.schedule('*/5 * * * *', async () => {
+  try {
+    await retryFailedEmails();
+  } catch (error) {
+    console.error('[CRON] Email Retry Error:', error);
+  }
+});
+
 export function initCronJobs(): void {
   cartRecoveryJob.start();
   unpaidOrderCancelJob.start();
   lowStockAlertJob.start();
-  console.log('[CRON] All scheduled jobs initialized.');
+  reconciliationJob.start();
+  emailRetryJob.start();
+  console.log('[CRON] All scheduled jobs initialized (including email retry).');
 }
 
-export { cartRecoveryJob, unpaidOrderCancelJob, lowStockAlertJob };
+export { cartRecoveryJob, unpaidOrderCancelJob, lowStockAlertJob, reconciliationJob, emailRetryJob };

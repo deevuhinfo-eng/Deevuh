@@ -19,67 +19,20 @@ interface Customer {
   };
 }
 
-const MOCK_CUSTOMERS: Customer[] = [
-  {
-    id: "cust-1",
-    name: "Devanshu",
-    email: "devanshu@website.com",
-    phone: "+91 98765 43210",
-    address: "B-42, Vasant Vihar, New Delhi - 110057, India",
-    memberSince: "May 2026",
-    sizing: {
-      chest: "40 inches",
-      waist: "32 inches",
-      shoulder: "18 inches",
-      height: "5'11\"",
-      fit: "Tailored Slim Fit",
-    }
-  },
-  {
-    id: "cust-2",
-    name: "Aarav Sharma",
-    email: "aarav@gmail.com",
-    phone: "+91 99999 88888",
-    address: "Sector 15, Gurgaon, Haryana, India",
-    memberSince: "April 2026",
-    sizing: {
-      chest: "42 inches",
-      waist: "34 inches",
-      shoulder: "19 inches",
-      height: "6'1\"",
-      fit: "Regular Modern Fit",
-    }
-  },
-  {
-    id: "cust-3",
-    name: "Mira Sen",
-    email: "mira.sen@outlook.com",
-    phone: "+91 98111 22222",
-    address: "Alipore, Kolkata, West Bengal, India",
-    memberSince: "May 2026",
-    sizing: {
-      chest: "36 inches",
-      waist: "28 inches",
-      shoulder: "15 inches",
-      height: "5'5\"",
-      fit: "Relaxed Fluid Fit",
-    }
-  }
-];
-
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCustomer, setActiveCustomer] = useState<Customer | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Backend fetch wrapper
     api.get("/admin/customers")
       .then((res: any) => {
-        setCustomers(res.data || MOCK_CUSTOMERS);
+        setCustomers(res.data || []);
       })
-      .catch(() => {
-        setCustomers(MOCK_CUSTOMERS);
+      .catch((err: any) => {
+        console.error(err);
+        setError("Failed to load customer directory.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -104,6 +57,19 @@ export default function AdminCustomersPage() {
           </p>
         </div>
 
+        {error && (
+          <div style={{
+            backgroundColor: "var(--color-error-container)",
+            border: "1px solid var(--color-error)",
+            color: "var(--color-error)",
+            padding: "12px 16px",
+            marginBottom: "20px",
+            fontSize: "14px"
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -117,9 +83,16 @@ export default function AdminCustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((cust) => (
-                <tr key={cust.id} style={{ cursor: "pointer" }} onClick={() => setActiveCustomer(cust)}>
-                  <td style={{ fontWeight: 600 }}>
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
+                    No members registered yet.
+                  </td>
+                </tr>
+              ) : (
+                customers.map((cust) => (
+                  <tr key={cust.id} style={{ cursor: "pointer" }} onClick={() => setActiveCustomer(cust)}>
+                    <td style={{ fontWeight: 600 }}>
                     {cust.name}
                   </td>
                   <td>
@@ -143,7 +116,8 @@ export default function AdminCustomersPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

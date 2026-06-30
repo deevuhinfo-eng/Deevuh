@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PRODUCTS } from "../../data/products";
 import api from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
@@ -17,18 +16,25 @@ export default function UserDashboard() {
     address: "",
     phone: "",
     measurements: {
-      chest: "40 inches",
-      waist: "32 inches",
-      shoulder: "18 inches",
-      height: "5'11\"",
-      fit: "Tailored Slim Fit",
+      chest: "Not set",
+      waist: "Not set",
+      shoulder: "Not set",
+      height: "Not set",
+      fit: "Not calibrated",
     }
   });
 
   const [orders, setOrders] = useState<any[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"orders" | "sizing" | "wishlist">("orders");
   const [isEditingSizing, setIsEditingSizing] = useState(false);
+
+  const [chestInput, setChestInput] = useState("");
+  const [waistInput, setWaistInput] = useState("");
+  const [shoulderInput, setShoulderInput] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const [fitInput, setFitInput] = useState("Tailored Slim Fit");
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -42,6 +48,14 @@ export default function UserDashboard() {
         const userOrders = ordersRes.data || [];
         
         setOrders(userOrders);
+
+        // Fetch wishlist
+        try {
+          const wishlistRes = await api.wishlist.list();
+          setWishlistItems(wishlistRes.data || []);
+        } catch (wishlistErr) {
+          console.error("Failed to load wishlist:", wishlistErr);
+        }
 
         // Get address from latest order if not provided
         let latestAddress = "No address saved";
@@ -64,9 +78,22 @@ export default function UserDashboard() {
           phone: phone,
           memberSince: user.createdAt 
             ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
-            : "May 2026",
-          address: latestAddress
+            : "Not available",
+          address: latestAddress,
+          measurements: {
+            chest: user.chest || "Not set",
+            waist: user.waist || "Not set",
+            shoulder: user.shoulder || "Not set",
+            height: user.height || "Not set",
+            fit: user.fit || "Not calibrated",
+          }
         }));
+
+        setChestInput(user.chest || "");
+        setWaistInput(user.waist || "");
+        setShoulderInput(user.shoulder || "");
+        setHeightInput(user.height || "");
+        setFitInput(user.fit || "Tailored Slim Fit");
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
         router.replace('/login?redirect=/dashboard');
@@ -84,6 +111,44 @@ export default function UserDashboard() {
       router.push('/login');
     } catch {
       router.push('/login');
+    }
+  };
+
+  const handleSaveSizing = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.put('/auth/sizing', {
+        chest: chestInput,
+        waist: waistInput,
+        shoulder: shoulderInput,
+        height: heightInput,
+        fit: fitInput
+      });
+      
+      setCustomer(prev => ({
+        ...prev,
+        measurements: {
+          chest: res.data.chest || "Not set",
+          waist: res.data.waist || "Not set",
+          shoulder: res.data.shoulder || "Not set",
+          height: res.data.height || "Not set",
+          fit: res.data.fit || "Not calibrated",
+        }
+      }));
+      setIsEditingSizing(false);
+    } catch (err: any) {
+      alert(err.message || "Failed to save tailoring profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveFromWishlist = async (productId: string) => {
+    try {
+      await api.wishlist.remove(productId);
+      setWishlistItems(prev => prev.filter(item => item.id !== productId));
+    } catch (err: any) {
+      alert(err.message || "Failed to remove item from wishlist.");
     }
   };
 
@@ -302,7 +367,7 @@ export default function UserDashboard() {
 
       {/* ════════ MAIN WORKSPACE ════════ */}
       <section className="container" style={{ padding: "60px 0 100px 0" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2.5fr", gap: "48px", alignItems: "start" }}>
+        <div className="dashboard-grid">
           
           {/* LEFT COLUMN: QUICK PROFILE CARD & TABS */}
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -484,7 +549,6 @@ export default function UserDashboard() {
               </div>
             )}
 
-            {/* WORKSPACE: SIZING */}
             {activeTab === "sizing" && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
@@ -492,7 +556,13 @@ export default function UserDashboard() {
                     Custom Tailoring Profile
                   </h2>
                   <button
-                    onClick={() => setIsEditingSizing(!isEditingSizing)}
+                    onClick={() => {
+                      if (isEditingSizing) {
+                        handleSaveSizing();
+                      } else {
+                        setIsEditingSizing(true);
+                      }
+                    }}
                     style={{
                       background: "none",
                       border: "none",
@@ -515,10 +585,10 @@ export default function UserDashboard() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
                   {[
-                    { key: "chest", label: "Chest Circumference", val: customer.measurements.chest },
-                    { key: "waist", label: "Waist Circumference", val: customer.measurements.waist },
-                    { key: "shoulder", label: "Shoulder-to-Shoulder", val: customer.measurements.shoulder },
-                    { key: "height", label: "Overall Height", val: customer.measurements.height },
+                    { key: "chest", label: "Chest Circumference", val: chestInput, setter: setChestInput },
+                    { key: "waist", label: "Waist Circumference", val: waistInput, setter: setWaistInput },
+                    { key: "shoulder", label: "Shoulder-to-Shoulder", val: shoulderInput, setter: setShoulderInput },
+                    { key: "height", label: "Overall Height", val: heightInput, setter: setHeightInput },
                   ].map((m) => (
                     <div key={m.key} style={{ border: borderStyle, padding: "20px" }}>
                       <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", color: "var(--color-on-surface-variant)", display: "block", textTransform: "uppercase", marginBottom: "6px" }}>
@@ -527,7 +597,8 @@ export default function UserDashboard() {
                       {isEditingSizing ? (
                         <input
                           type="text"
-                          defaultValue={m.val}
+                          value={m.val}
+                          onChange={(e) => m.setter(e.target.value)}
                           style={{
                             width: "100%",
                             padding: "8px 12px",
@@ -539,7 +610,9 @@ export default function UserDashboard() {
                           }}
                         />
                       ) : (
-                        <span style={{ fontSize: "18px", fontWeight: 600, color: "var(--color-charcoal)" }}>{m.val}</span>
+                        <span style={{ fontSize: "18px", fontWeight: 600, color: "var(--color-charcoal)" }}>
+                          {customer.measurements[m.key as keyof typeof customer.measurements]}
+                        </span>
                       )}
                     </div>
                   ))}
@@ -549,9 +622,23 @@ export default function UserDashboard() {
                   <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", color: "var(--color-ruby)", display: "block", textTransform: "uppercase", marginBottom: "6px" }}>
                     CALIBRATED FIT STYLE
                   </span>
-                  <span style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-charcoal)" }}>
-                    {customer.measurements.fit}
-                  </span>
+                  {isEditingSizing ? (
+                    <select
+                      value={fitInput}
+                      onChange={(e) => setFitInput(e.target.value)}
+                      className="input"
+                      style={{ borderRadius: 0, padding: "8px 12px", border: borderStyle }}
+                    >
+                      <option value="Tailored Slim Fit">Tailored Slim Fit</option>
+                      <option value="Classic Regular Fit">Classic Regular Fit</option>
+                      <option value="Relaxed Silhouette">Relaxed Silhouette</option>
+                      <option value="Oversized Contemporary Fit">Oversized Contemporary Fit</option>
+                    </select>
+                  ) : (
+                    <span style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-charcoal)" }}>
+                      {customer.measurements.fit}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -563,58 +650,83 @@ export default function UserDashboard() {
                   Curated Wishlist
                 </h2>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-                  {PRODUCTS.slice(2, 4).map((p) => (
-                    <div key={p.id} style={{ border: borderStyle, display: "flex", flexDirection: "column" }}>
-                      <div style={{ aspectRatio: "3/4", overflow: "hidden", borderBottom: borderStyle, position: "relative" }}>
-                        <img src={p.images[0]} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        <button
-                          style={{
-                            position: "absolute",
-                            top: "12px",
-                            right: "12px",
-                            backgroundColor: "rgba(252, 249, 248, 0.9)",
-                            border: "none",
-                            borderRadius: "50%",
-                            width: "32px",
-                            height: "32px",
-                            cursor: "pointer",
-                            fontSize: "16px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "var(--color-ruby)",
-                          }}
-                        >
-                          ♥
-                        </button>
+                {wishlistItems.length === 0 ? (
+                  <div style={{ border: borderStyle, padding: "40px", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+                    <span style={{ fontSize: "15px", display: "block", marginBottom: "16px" }}>
+                      Your wishlist is empty.
+                    </span>
+                    <Link
+                      href="/#collection-section"
+                      style={{
+                        display: "inline-block",
+                        padding: "10px 24px",
+                        backgroundColor: "var(--color-charcoal)",
+                        color: "var(--color-cream)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        textDecoration: "none"
+                      }}
+                    >
+                      Explore Collection
+                    </Link>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                    {wishlistItems.map((p) => (
+                      <div key={p.id} style={{ border: borderStyle, display: "flex", flexDirection: "column" }}>
+                        <div style={{ aspectRatio: "3/4", overflow: "hidden", borderBottom: borderStyle, position: "relative" }}>
+                          <img src={p.images[0] || "/products/Baby Blue Coordset/1 Picture.jpg"} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <button
+                            onClick={() => handleRemoveFromWishlist(p.id)}
+                            style={{
+                              position: "absolute",
+                              top: "12px",
+                              right: "12px",
+                              backgroundColor: "rgba(252, 249, 248, 0.9)",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "32px",
+                              height: "32px",
+                              cursor: "pointer",
+                              fontSize: "16px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "var(--color-ruby)",
+                            }}
+                          >
+                            ♥
+                          </button>
+                        </div>
+                        <div style={{ padding: "16px", display: "flex", flexDirection: "column", flex: 1 }}>
+                          <h4 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: 600 }}>{p.title}</h4>
+                          <span style={{ fontSize: "16px", fontFamily: "var(--font-serif)", fontWeight: 700, marginBottom: "16px" }}>
+                            ₹{Number(p.price).toLocaleString("en-IN")}
+                          </span>
+                          <Link
+                            href={`/products/${p.id}`}
+                            style={{
+                              marginTop: "auto",
+                              textAlign: "center",
+                              padding: "10px",
+                              backgroundColor: "var(--color-charcoal)",
+                              color: "var(--color-cream)",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                              textDecoration: "none"
+                            }}
+                          >
+                            Add to Wardrobe
+                          </Link>
+                        </div>
                       </div>
-                      <div style={{ padding: "16px", display: "flex", flexDirection: "column", flex: 1 }}>
-                        <h4 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: 600 }}>{p.title}</h4>
-                        <span style={{ fontSize: "16px", fontFamily: "var(--font-serif)", fontWeight: 700, marginBottom: "16px" }}>
-                          ₹{p.price.toLocaleString("en-IN")}
-                        </span>
-                        <Link
-                          href={`/products/${p.id}`}
-                          style={{
-                            marginTop: "auto",
-                            textAlign: "center",
-                            padding: "10px",
-                            backgroundColor: "var(--color-charcoal)",
-                            color: "var(--color-cream)",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            textDecoration: "none"
-                          }}
-                        >
-                          Add to Wardrobe
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

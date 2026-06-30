@@ -41,7 +41,14 @@ model User {
   carts           Cart[]
   orders          Order[]
   reviews         Review[]
+  chest           String?  @db.VarChar(50)
+  waist           String?  @db.VarChar(50)
+  shoulder        String?  @db.VarChar(50)
+  height          String?  @db.VarChar(50)
+  fit             String?  @db.VarChar(100)
+  wishlist        WishlistItem[]
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -56,8 +63,11 @@ model Product {
   variants    ProductVariant[]
   images      ProductImage[]
   reviews     Review[]
+  wishlistedBy WishlistItem[]
   createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
 
+  @@index([category])
   @@map("products")
 }
 
@@ -71,6 +81,7 @@ model ProductVariant {
   cartItems  CartItem[]
   orderItems OrderItem[]
 
+  @@index([productId])
   @@map("product_variants")
 }
 
@@ -80,6 +91,7 @@ model ProductImage {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   imageUrl  String  @map("image_url") @db.Text
 
+  @@index([productId])
   @@map("product_images")
 }
 
@@ -91,6 +103,7 @@ model Cart {
   lastActivityAt DateTime   @updatedAt @map("last_activity_at")
   items          CartItem[]
 
+  @@index([userId, status])
   @@map("carts")
 }
 
@@ -99,9 +112,11 @@ model CartItem {
   cartId           String         @map("cart_id") @db.Uuid
   cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productVariantId String         @map("product_variant_id") @db.Uuid
-  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   quantity         Int
 
+  @@index([cartId])
+  @@index([productVariantId])
   @@map("cart_items")
 }
 
@@ -113,7 +128,7 @@ model Order {
   shippingName        String        @map("shipping_name") @db.VarChar(255)
   shippingPhone       String        @map("shipping_phone") @db.VarChar(50)
   couponId            String?       @map("coupon_id") @db.Uuid
-  coupon              Coupon?       @relation(fields: [couponId], references: [id])
+  coupon              Coupon?       @relation(fields: [couponId], references: [id], onDelete: Restrict)
   totalAmount         Decimal       @map("total_amount") @db.Decimal(10, 2)
   discountAmount      Decimal       @default(0.00) @map("discount_amount") @db.Decimal(10, 2)
   gstAmount           Decimal       @default(0.00) @map("gst_amount") @db.Decimal(10, 2)
@@ -123,7 +138,10 @@ model Order {
   orderStatus         OrderStatus   @default(CREATED) @map("order_status")
   items               OrderItem[]
   createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at")
 
+  @@index([userId])
+  @@index([paymentStatus, orderStatus])
   @@map("orders")
 }
 
@@ -132,10 +150,12 @@ model OrderItem {
   orderId          String         @map("order_id") @db.Uuid
   order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productVariantId String         @map("product_variant_id") @db.Uuid
-  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   quantity         Int
   unitPrice        Decimal        @map("unit_price") @db.Decimal(10, 2)
 
+  @@index([orderId])
+  @@index([productVariantId])
   @@map("order_items")
 }
 
@@ -196,6 +216,7 @@ model AuthLog {
   userAgent String?  @map("user_agent") @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId])
   @@map("auth_logs")
 }
 
@@ -213,6 +234,51 @@ model Review {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([productId, userId], name: "product_user_unique")
+  @@index([userId])
   @@map("reviews")
 }
+
+model WishlistItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String   @map("product_id") @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, productId], name: "user_product_unique")
+  @@index([userId])
+  @@map("wishlist_items")
+}
+
+model ProcessedWebhook {
+  id        String   @id @default(uuid()) @db.Uuid
+  webhookId String   @unique @map("webhook_id") @db.VarChar(255)
+  paymentId String   @map("payment_id") @db.VarChar(255)
+  status    String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([paymentId])
+  @@map("processed_webhooks")
+}
+
+model EmailLog {
+  id              String    @id @default(uuid()) @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  emailType       String    @map("email_type") @db.VarChar(50)
+  recipient       String    @db.VarChar(255)
+  status          String    @db.VarChar(50)
+  resendMessageId String?   @map("resend_message_id") @db.VarChar(255)
+  retryCount      Int       @default(0) @map("retry_count")
+  lastError       String?   @map("last_error") @db.Text
+  sentAt          DateTime? @map("sent_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([orderId, emailType], name: "order_email_unique")
+  @@index([orderId])
+  @@index([status])
+  @@map("email_logs")
+}
+
 

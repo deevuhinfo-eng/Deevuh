@@ -10,12 +10,22 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+const mapBackendProduct = (prod: any): Product => ({
+  id: prod.id,
+  title: prod.title,
+  price: Number(prod.basePrice || prod.price || 0),
+  category: prod.category,
+  description: prod.description,
+  images: prod.images ? prod.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
+  sizes: prod.variants && prod.variants.length > 0 ? Array.from(new Set(prod.variants.map((v: any) => v.size))) as string[] : (prod.sizes || []),
+  details: prod.details || ["Premium handcrafted fabric", "Made in India"],
+});
+
 export default function ProductDetailPage({ params }: PageProps) {
   const { id } = use(params);
   
-  const staticProduct = PRODUCTS.find((p) => p.id === id);
   const [dbProduct, setDbProduct] = useState<any | null>(null);
-  const [loading, setLoading] = useState<boolean>(!staticProduct);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchDbProduct = async () => {
@@ -33,40 +43,38 @@ export default function ProductDetailPage({ params }: PageProps) {
     fetchDbProduct();
   }, [id]);
 
-  // Resolve static product metadata either by direct ID (slug) or from database product title
-  const product = staticProduct || (() => {
-    if (dbProduct) {
-      const titleMap: Record<string, string> = {
-        'Baby Blue Coordset': 'baby-blue-coordset',
-        'The Vatavaran Coordset': 'baby-blue-coordset',
-        'Beige Tailored Set': 'beige-outfit',
-        'The Korean Coordset': 'beige-outfit',
-        'Brown Earthy Coordset': 'brown-coordset',
-        'The Mocha Brown Coordset': 'brown-coordset',
-        'Beige Dupatta Set': 'dupatta-beige-outfit',
-        'The Rani Coordset': 'dupatta-beige-outfit',
-      };
-      const staticId = titleMap[dbProduct.title];
-      if (staticId) {
-        const found = PRODUCTS.find((p) => p.id === staticId);
-        if (found) return found;
-      }
-
-      // Fallback for custom products added in admin panel
-      return {
-        id: dbProduct.id,
-        title: dbProduct.title,
-        price: Number(dbProduct.basePrice || dbProduct.price || 0),
-        category: dbProduct.category,
-        description: dbProduct.description || "",
-        images: dbProduct.images ? dbProduct.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) : [],
-        sizes: dbProduct.variants && dbProduct.variants.length > 0 
-          ? Array.from(new Set(dbProduct.variants.map((v: any) => v.size))) as string[] 
-          : (dbProduct.sizes || []),
-        details: dbProduct.details || ["Premium handcrafted fabric", "Made in India"],
-      } as Product;
-    }
-    return undefined;
+  // Resolve product metadata by combining database details (source of truth for price, variants, stock) with static brand copy (details, full description layout).
+  const product = (() => {
+    if (!dbProduct) return undefined;
+    
+    // Find static copy template if available
+    const titleMap: Record<string, string> = {
+      'Baby Blue Coordset': 'baby-blue-coordset',
+      'The Vatavaran Coordset': 'baby-blue-coordset',
+      'Beige Tailored Set': 'beige-outfit',
+      'The Korean Coordset': 'beige-outfit',
+      'Brown Earthy Coordset': 'brown-coordset',
+      'The Mocha Brown Coordset': 'brown-coordset',
+      'Beige Dupatta Set': 'dupatta-beige-outfit',
+      'The Rani Coordset': 'dupatta-beige-outfit',
+    };
+    const staticId = titleMap[dbProduct.title];
+    const staticCopy = staticId ? PRODUCTS.find((p) => p.id === staticId) : undefined;
+    
+    return {
+      id: dbProduct.id,
+      title: dbProduct.title,
+      price: Number(dbProduct.basePrice || dbProduct.price || 0),
+      category: dbProduct.category,
+      description: dbProduct.description || (staticCopy?.description || ""),
+      images: dbProduct.images && dbProduct.images.length > 0 
+        ? dbProduct.images.map((img: any) => typeof img === 'string' ? img : (img.imageUrl || "")) 
+        : (staticCopy?.images || []),
+      sizes: dbProduct.variants && dbProduct.variants.length > 0 
+        ? Array.from(new Set(dbProduct.variants.map((v: any) => v.size))) as string[] 
+        : (staticCopy?.sizes || []),
+      details: staticCopy?.details || dbProduct.details || ["Premium handcrafted fabric", "Made in India"],
+    } as Product;
   })();
 
   const [activeImage, setActiveImage] = useState<string>(product?.images?.[0] || "");
@@ -330,10 +338,23 @@ export default function ProductDetailPage({ params }: PageProps) {
 
   const { addToCart, toggleCart, cartItems } = useCart();
 
-  // Get other 3 products for the related section
-  const relatedProducts = product 
-    ? PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3)
-    : [];
+  // Get other 3 products for the related section dynamically from database
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    api.get("/products")
+      .then((res: any) => {
+        const productList = res.data || [];
+        const filtered = productList
+          .filter((p: any) => p.id !== id)
+          .slice(0, 3)
+          .map(mapBackendProduct);
+        setRelatedProducts(filtered);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch related products from database:", err);
+      });
+  }, [id]);
 
   if (loading) {
     return (

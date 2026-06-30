@@ -10,42 +10,10 @@ interface MediaAsset {
   uploadedAt: string;
 }
 
-const DEFAULT_ASSETS: MediaAsset[] = [
-  {
-    url: "/products/Baby Blue Coordset/1 Picture.jpg",
-    name: "Baby Blue Coordset Cover.jpg",
-    size: "3.2 MB",
-    uploadedAt: "May 24, 2026"
-  },
-  {
-    url: "/products/Beige outfit/1 picture.jpg",
-    name: "Beige Suit Editorial.jpg",
-    size: "2.5 MB",
-    uploadedAt: "May 24, 2026"
-  },
-  {
-    url: "/products/Brown coordsets/1st Picture.jpg",
-    name: "Brown Earthy Coord.jpg",
-    size: "2.9 MB",
-    uploadedAt: "May 24, 2026"
-  },
-  {
-    url: "/products/Dupatta beige outfit/1st Picture.jpg",
-    name: "Beige Dupatta Set Primary.jpg",
-    size: "2.1 MB",
-    uploadedAt: "May 24, 2026"
-  },
-  {
-    url: "/products/Combo/DSC_0034.jpg",
-    name: "DEEVUH V3 Lookbook Cover.jpg",
-    size: "2.0 MB",
-    uploadedAt: "May 24, 2026"
-  }
-];
-
 export default function AdminUploadsPage() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   
   // Upload Simulator State
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -53,13 +21,13 @@ export default function AdminUploadsPage() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Attempt backend fetch, fallback to defaults
     api.get("/admin/uploads")
       .then((res: any) => {
-        setAssets(res.data && res.data.length > 0 ? res.data : DEFAULT_ASSETS);
+        setAssets(res.data || []);
       })
-      .catch(() => {
-        setAssets(DEFAULT_ASSETS);
+      .catch((err: any) => {
+        console.error(err);
+        setError("Failed to load catalogue media.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -77,31 +45,13 @@ export default function AdminUploadsPage() {
   const handleUpload = async (file: File) => {
     setUploadProgress(10);
     
-    // Attempt real backend upload
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("deevuh_token") : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     try {
       setUploadProgress(30);
-      const res = await fetch("http://localhost:4000/api/uploads/image", {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-
+      const responseData = await api.post("/uploads/image", formData);
       setUploadProgress(70);
-      
-      if (!res.ok) {
-        throw new Error(`Upload failed with status ${res.status}`);
-      }
-
-      const responseData = await res.json();
       setUploadProgress(100);
 
       const newAsset: MediaAsset = {
@@ -187,6 +137,19 @@ export default function AdminUploadsPage() {
           Upload clothing catalog photography and manage active media assets
         </p>
       </div>
+
+      {error && (
+        <div style={{
+          backgroundColor: "var(--color-error-container)",
+          border: "1px solid var(--color-error)",
+          color: "var(--color-error)",
+          padding: "12px 16px",
+          marginBottom: "20px",
+          fontSize: "14px"
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* Drag & Drop File Uploader Panel */}
       <div

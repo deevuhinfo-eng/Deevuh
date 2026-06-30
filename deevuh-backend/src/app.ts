@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import prisma from './config/database.js';
 
 import authRoutes from './modules/auth/auth.routes.js';
 import productRoutes from './modules/products/products.routes.js';
@@ -14,10 +15,15 @@ import paymentRoutes from './modules/payments/payments.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import uploadRoutes from './modules/uploads/uploads.routes.js';
 import reviewsRoutes from './modules/reviews/reviews.routes.js';
+import wishlistRoutes from './modules/wishlist/wishlist.routes.js';
+
+import { correlationMiddleware } from './middleware/correlation.js';
 
 dotenv.config();
 
 const app = express();
+
+app.use(correlationMiddleware);
 
 // Trust reverse proxy for secure cookies and rate limits
 app.set('trust proxy', 1);
@@ -42,7 +48,9 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    const isVercelPreview = origin && origin.endsWith('.vercel.app') && origin.includes('deevuh');
+    const isLocalDev = process.env.NODE_ENV !== 'production' && origin && origin.endsWith('.vercel.app');
+    if (!origin || allowedOrigins.includes(origin) || isLocalDev || isVercelPreview) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -51,10 +59,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting — 100 requests per 15 minutes
+// Rate limiting — 300 requests per 15 minutes (scaled for active storefront users)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { status: 'error', message: 'Too many requests. Please try again later.' },
@@ -69,11 +77,15 @@ app.use(cookieParser());
 import { csrfMiddleware } from './middleware/csrf.js';
 app.use(csrfMiddleware);
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  const dbUrl = process.env.DATABASE_URL || '';
-  const redactedUrl = dbUrl.replace(/:[^@]+@/, ':****@');
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString(), dbUrl: redactedUrl });
+// Health check — redacts DB connection URL entirely and verifies DB connectivity
+app.get('/api/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (error: any) {
+    console.error('[Health Check DB Connection Error]', error.message);
+    res.status(500).json({ status: 'error', database: 'disconnected', timestamp: new Date().toISOString() });
+  }
 });
 
 // Mount routes
@@ -86,6 +98,7 @@ app.use('/api/checkout', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/reviews', reviewsRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Global error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

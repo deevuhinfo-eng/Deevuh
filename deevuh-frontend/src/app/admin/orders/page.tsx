@@ -21,6 +21,13 @@ interface Order {
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
+  shippingName?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  paymentGatewayTxnId?: string;
+  totalAmount?: string;
+  discountAmount?: string;
+  gstAmount?: string;
   user?: {
     name: string;
     email: string;
@@ -29,98 +36,21 @@ interface Order {
   items: OrderItem[];
 }
 
-const MOCK_ORDERS: Order[] = [
-  {
-    id: "order-9821-deevuh",
-    finalAmount: "3499",
-    paymentStatus: "SUCCESS",
-    orderStatus: "SHIPPED",
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      name: "Devanshu",
-      email: "devanshu@website.com",
-      phone: "+91 98765 43210",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "M",
-          price: "3499",
-          product: {
-            title: "Baby Blue Coordset",
-            images: ["/products/Baby Blue Coordset/1 Picture.jpg"]
-          }
-        }
-      }
-    ]
-  },
-  {
-    id: "order-4402-deevuh",
-    finalAmount: "2999",
-    paymentStatus: "SUCCESS",
-    orderStatus: "DELIVERED",
-    createdAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      name: "Devanshu",
-      email: "devanshu@website.com",
-      phone: "+91 98765 43210",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "M",
-          price: "2999",
-          product: {
-            title: "Beige Tailored Set",
-            images: ["/products/Beige outfit/1 picture.jpg"]
-          }
-        }
-      }
-    ]
-  },
-  {
-    id: "order-1209-deevuh",
-    finalAmount: "3299",
-    paymentStatus: "PENDING",
-    orderStatus: "CREATED",
-    createdAt: new Date().toISOString(),
-    user: {
-      name: "Aarav Sharma",
-      email: "aarav@gmail.com",
-      phone: "+91 99999 88888",
-    },
-    items: [
-      {
-        quantity: 1,
-        variant: {
-          size: "S",
-          price: "3299",
-          product: {
-            title: "Brown Earthy Coordset",
-            images: ["/products/Brown coordsets/1st Picture.jpg"]
-          }
-        }
-      }
-    ]
-  }
-];
-
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [activeOrderDetails, setActiveOrderDetails] = useState<Order | null>(null);
+  const [error, setError] = useState("");
 
   const fetchOrders = async () => {
     try {
-      const res: any = await api.get("/admin/orders")
-        .catch(() => ({ data: MOCK_ORDERS }));
-      setOrders(res.data || MOCK_ORDERS);
-    } catch (err) {
-      console.warn("Backend orders fetch failed, using fallback list.", err);
-      setOrders(MOCK_ORDERS);
+      setError("");
+      const res: any = await api.get("/admin/orders");
+      setOrders(res.data || []);
+    } catch (err: any) {
+      console.error("Backend orders fetch failed", err);
+      setError("Failed to load orders from the database.");
     } finally {
       setLoading(false);
     }
@@ -132,19 +62,13 @@ export default function AdminOrdersPage() {
 
   const transitionOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await api.put(`/admin/orders/${orderId}/status`, { orderStatus: newStatus })
-        .catch(() => {
-          // Local fallback simulation
-          setOrders(orders.map(o => o.id === orderId ? { ...o, orderStatus: newStatus } : o));
-          if (activeOrderDetails && activeOrderDetails.id === orderId) {
-            setActiveOrderDetails({ ...activeOrderDetails, orderStatus: newStatus });
-          }
-        });
-      
-      // Refresh list
+      await api.put(`/admin/orders/${orderId}/status`, { orderStatus: newStatus });
       fetchOrders();
+      if (activeOrderDetails && activeOrderDetails.id === orderId) {
+        setActiveOrderDetails({ ...activeOrderDetails, orderStatus: newStatus });
+      }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || "Failed to update order status.");
     }
   };
 
@@ -196,6 +120,19 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
+        {error && (
+          <div style={{
+            backgroundColor: "var(--color-error-container)",
+            border: "1px solid var(--color-error)",
+            color: "var(--color-error)",
+            padding: "12px 16px",
+            marginBottom: "20px",
+            fontSize: "14px"
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -210,7 +147,14 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
+                    No orders found.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order) => (
                 <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => setActiveOrderDetails(order)}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700 }}>
                     #{order.id.slice(0, 8).toUpperCase()}
@@ -271,7 +215,8 @@ export default function AdminOrdersPage() {
                     </select>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
@@ -294,11 +239,23 @@ export default function AdminOrdersPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontSize: "14px" }}>
             <div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>PLACED BY</span>
-              <div style={{ fontWeight: 600, marginTop: "4px" }}>{activeOrderDetails.user?.name}</div>
-              <div style={{ color: "var(--color-on-surface-variant)" }}>{activeOrderDetails.user?.email}</div>
-              <div style={{ color: "var(--color-on-surface-variant)" }}>{activeOrderDetails.user?.phone}</div>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>SHIPPING TO (CUSTOMER DETAILS)</span>
+              <div style={{ fontWeight: 600, marginTop: "4px" }}>{activeOrderDetails.shippingName || activeOrderDetails.user?.name}</div>
+              <div style={{ color: "var(--color-on-surface-variant)" }}>Email: {activeOrderDetails.user?.email || "No email"}</div>
+              <div style={{ color: "var(--color-on-surface-variant)" }}>Phone: {activeOrderDetails.shippingPhone || activeOrderDetails.user?.phone || "No phone"}</div>
+              <div style={{ color: "var(--color-on-surface-variant)", whiteSpace: "pre-line", marginTop: "4px", padding: "8px", border: "1px dashed var(--color-outline-variant)", backgroundColor: "var(--color-surface-container-low)" }}>
+                {activeOrderDetails.shippingAddress || "No address on file"}
+              </div>
             </div>
+
+            {activeOrderDetails.paymentGatewayTxnId && (
+              <div>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>TRANSACTION ID</span>
+                <div style={{ fontFamily: "monospace", fontWeight: 600, marginTop: "4px", fontSize: "12px", wordBreak: "break-all" }}>
+                  {activeOrderDetails.paymentGatewayTxnId}
+                </div>
+              </div>
+            )}
 
             <div>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>DISPATCH ADAPTATIONS</span>
@@ -327,11 +284,27 @@ export default function AdminOrdersPage() {
               ))}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
-              <span>Total Gross (GST Inc.)</span>
-              <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-serif)" }}>
-                ₹{Number(activeOrderDetails.finalAmount).toLocaleString("en-IN")}
-              </span>
+            <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--color-on-surface-variant)" }}>Subtotal</span>
+                <span>₹{Number(activeOrderDetails.totalAmount || activeOrderDetails.finalAmount).toLocaleString("en-IN")}</span>
+              </div>
+              {Number(activeOrderDetails.discountAmount || 0) > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "green" }}>
+                  <span>Discount</span>
+                  <span>-₹{Number(activeOrderDetails.discountAmount).toLocaleString("en-IN")}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--color-on-surface-variant)" }}>GST (Included)</span>
+                <span>₹{Number(activeOrderDetails.gstAmount || 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, borderTop: "2px solid var(--color-outline)", paddingTop: "10px", marginTop: "4px" }}>
+                <span style={{ fontSize: "14px" }}>Total Gross (GST Inc.)</span>
+                <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-serif)" }}>
+                  ₹{Number(activeOrderDetails.finalAmount).toLocaleString("en-IN")}
+                </span>
+              </div>
             </div>
 
             {/* Advance shipment actions */}
