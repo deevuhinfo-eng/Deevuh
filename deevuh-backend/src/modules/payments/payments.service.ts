@@ -34,7 +34,14 @@ export const generatePayUHash = (
  * Uses reverse hash verification and wraps stock deductions in prisma.$transaction.
  */
 export const processPayUWebhook = async (payload: any): Promise<boolean> => {
-  const { txnid, amount, status, hash, productinfo, firstname, email } = payload;
+  const txnid = payload.txnid || '';
+  const amount = payload.amount || '';
+  const status = payload.status || '';
+  const hash = payload.hash || '';
+  const productinfo = payload.productinfo || '';
+  const firstname = payload.firstname || '';
+  const email = payload.email || '';
+
   const key = process.env.PAYU_MERCHANT_KEY || '';
   const salt = process.env.PAYU_MERCHANT_SALT || '';
 
@@ -63,14 +70,17 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
     throw new Error('Tampered payment signature detected. Webhook payload rejected.');
   }
 
+  const statusLower = status.toLowerCase();
   const webhookId = String(payload.mihpayid || `${txnid}_${status}`);
+
+  console.log(`[PayU Webhook] [${new Date().toISOString()}] Received webhook payload: txnid=${txnid}, status=${status}, amount=${amount}, hash=${hash}, mihpayid=${payload.mihpayid}`);
 
   // Outer fast check
   const alreadyProcessed = await prisma.processedWebhook.findUnique({
     where: { webhookId },
   });
   if (alreadyProcessed) {
-    console.log(`[PayU Webhook] Duplicate webhook for txnid ${txnid} (webhookId: ${webhookId}) — already processed.`);
+    console.log(`[PayU Webhook] [${new Date().toISOString()}] Duplicate webhook for txnid ${txnid} (webhookId: ${webhookId}) — already processed.`);
     return alreadyProcessed.status === 'success';
   }
 
@@ -105,18 +115,22 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
       await tx.processedWebhook.create({
         data: { webhookId, paymentId: txnid, status: 'success' },
       });
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} is already in SUCCESS state.`);
       return true;
     }
 
-    // Skip if order was already marked failed
-    if (order.paymentStatus === 'FAILED') {
-      await tx.processedWebhook.create({
-        data: { webhookId, paymentId: txnid, status: 'failure' },
-      });
-      return false;
-    }
+    if (statusLower === 'success') {
+      // Recovery logic: if order was previously CANCELLED or FAILED, re-deduct the stock since they were returned to inventory
+      if (order.orderStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
+        console.log(`[PayU Webhook] [${new Date().toISOString()}] Recovering order ${order.id} from CANCELLED/FAILED state. Re-decrementing stock...`);
+        for (const item of order.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { decrement: item.quantity } },
+          });
+        }
+      }
 
-    if (status === 'success') {
       await tx.order.update({
         where: { paymentGatewayTxnId: txnid },
         data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
@@ -126,10 +140,19 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
         data: { webhookId, paymentId: txnid, status: 'success' },
       });
 
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} updated to SUCCESS / PROCESSING.`);
       return true;
     }
 
-    if (status === 'failure' || status === 'failed') {
+    if (statusLower === 'failure' || statusLower === 'failed') {
+      // Skip if order was already marked failed/cancelled
+      if (order.paymentStatus === 'FAILED' && order.orderStatus === 'CANCELLED') {
+        await tx.processedWebhook.create({
+          data: { webhookId, paymentId: txnid, status: 'failure' },
+        });
+        return false;
+      }
+
       await tx.order.update({
         where: { paymentGatewayTxnId: txnid },
         data: { paymentStatus: 'FAILED', orderStatus: 'CANCELLED' },
@@ -147,6 +170,7 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
         data: { webhookId, paymentId: txnid, status: 'failure' },
       });
 
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} payment failed. Marked FAILED/CANCELLED and stock restored.`);
       return false;
     }
 
@@ -154,7 +178,7 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
   });
 
   // Send both emails (customer + owner) asynchronously on success
-  if (isSuccess && status === 'success') {
+  if (isSuccess && statusLower === 'success') {
     const updatedOrder = await prisma.order.findUnique({
       where: { paymentGatewayTxnId: txnid },
       include: {
@@ -190,8 +214,9 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
         })),
       };
 
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Triggering async order emails for order ${updatedOrder.id}...`);
       sendOrderEmails(emailData).catch((err: any) => {
-        console.error('[Order Email Error]', err.message);
+        console.error(`[Order Email Error] [${new Date().toISOString()}] Error triggering emails:`, err.message);
       });
     }
   }

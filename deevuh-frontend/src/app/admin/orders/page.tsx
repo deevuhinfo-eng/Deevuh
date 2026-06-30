@@ -21,6 +21,13 @@ interface Order {
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
+  shippingName?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  paymentGatewayTxnId?: string;
+  totalAmount?: string;
+  discountAmount?: string;
+  gstAmount?: string;
   user?: {
     name: string;
     email: string;
@@ -232,11 +239,23 @@ export default function AdminOrdersPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontSize: "14px" }}>
             <div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>PLACED BY</span>
-              <div style={{ fontWeight: 600, marginTop: "4px" }}>{activeOrderDetails.user?.name}</div>
-              <div style={{ color: "var(--color-on-surface-variant)" }}>{activeOrderDetails.user?.email}</div>
-              <div style={{ color: "var(--color-on-surface-variant)" }}>{activeOrderDetails.user?.phone}</div>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>SHIPPING TO (CUSTOMER DETAILS)</span>
+              <div style={{ fontWeight: 600, marginTop: "4px" }}>{activeOrderDetails.shippingName || activeOrderDetails.user?.name}</div>
+              <div style={{ color: "var(--color-on-surface-variant)" }}>Email: {activeOrderDetails.user?.email || "No email"}</div>
+              <div style={{ color: "var(--color-on-surface-variant)" }}>Phone: {activeOrderDetails.shippingPhone || activeOrderDetails.user?.phone || "No phone"}</div>
+              <div style={{ color: "var(--color-on-surface-variant)", whiteSpace: "pre-line", marginTop: "4px", padding: "8px", border: "1px dashed var(--color-outline-variant)", backgroundColor: "var(--color-surface-container-low)" }}>
+                {activeOrderDetails.shippingAddress || "No address on file"}
+              </div>
             </div>
+
+            {activeOrderDetails.paymentGatewayTxnId && (
+              <div>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>TRANSACTION ID</span>
+                <div style={{ fontFamily: "monospace", fontWeight: 600, marginTop: "4px", fontSize: "12px", wordBreak: "break-all" }}>
+                  {activeOrderDetails.paymentGatewayTxnId}
+                </div>
+              </div>
+            )}
 
             <div>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textTransform: "uppercase" }}>DISPATCH ADAPTATIONS</span>
@@ -265,11 +284,27 @@ export default function AdminOrdersPage() {
               ))}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
-              <span>Total Gross (GST Inc.)</span>
-              <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-serif)" }}>
-                ₹{Number(activeOrderDetails.finalAmount).toLocaleString("en-IN")}
-              </span>
+            <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--color-on-surface-variant)" }}>Subtotal</span>
+                <span>₹{Number(activeOrderDetails.totalAmount || activeOrderDetails.finalAmount).toLocaleString("en-IN")}</span>
+              </div>
+              {Number(activeOrderDetails.discountAmount || 0) > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "green" }}>
+                  <span>Discount</span>
+                  <span>-₹{Number(activeOrderDetails.discountAmount).toLocaleString("en-IN")}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--color-on-surface-variant)" }}>GST (Included)</span>
+                <span>₹{Number(activeOrderDetails.gstAmount || 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, borderTop: "2px solid var(--color-outline)", paddingTop: "10px", marginTop: "4px" }}>
+                <span style={{ fontSize: "14px" }}>Total Gross (GST Inc.)</span>
+                <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-serif)" }}>
+                  ₹{Number(activeOrderDetails.finalAmount).toLocaleString("en-IN")}
+                </span>
+              </div>
             </div>
 
             {/* Advance shipment actions */}

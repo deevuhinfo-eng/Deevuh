@@ -2,12 +2,19 @@ import { Resend } from 'resend';
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_key_for_testing');
+let resendClient: Resend | null = null;
+const getResendClient = (): Resend => {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY || 're_mock_key_for_testing';
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+};
 
 /**
  * Verified sender address — deevuh.in is confirmed in Resend.
  */
-const FROM_ADDRESS = 'Deevuh <confirmation@deevuh.in>';
+const FROM_ADDRESS = process.env.RESEND_FROM ?? 'Deevuh <orders@confirmation.deevuh.in>';
 const REPLY_TO = 'deevuhinfo@gmail.com';
 
 // ─────────────────────────────────────────────
@@ -53,7 +60,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
   }
 
   try {
-    await resend.emails.send({
+    const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       replyTo: REPLY_TO,
       to: email,
@@ -92,7 +99,11 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
         </html>
       `,
     });
-    console.log(`[Email] Password reset email sent to ${email}`);
+    if (result.error) {
+      console.error(`[Email] Resend API error sending password reset to ${email}:`, result.error);
+    } else {
+      console.log(`[Email] Password reset email sent to ${email}`);
+    }
   } catch (err: any) {
     console.error(`[Email] Failed to send password reset to ${email}:`, err.message);
   }
@@ -108,7 +119,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
   }
 
   try {
-    await resend.emails.send({
+    const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       replyTo: REPLY_TO,
       to: email,
@@ -147,7 +158,11 @@ export const sendVerificationEmail = async (email: string, token: string) => {
         </html>
       `,
     });
-    console.log(`[Email] Verification email sent to ${email}`);
+    if (result.error) {
+      console.error(`[Email] Resend API error sending verification to ${email}:`, result.error);
+    } else {
+      console.log(`[Email] Verification email sent to ${email}`);
+    }
   } catch (err: any) {
     // Log but don't crash — user can request a new link
     console.error(`[Email] Failed to send verification to ${email}:`, err.message);
@@ -214,7 +229,7 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
 
   try {
-    const result = await resend.emails.send({
+    const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       replyTo: REPLY_TO,
       to: data.customerEmail,
@@ -329,6 +344,10 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
         </html>
       `,
     });
+    if (result.error) {
+      console.error(`[Email] Failed to send customer confirmation to ${data.customerEmail} via Resend:`, result.error);
+      return { error: result.error.message || JSON.stringify(result.error) };
+    }
     console.log(`[Email] Customer confirmation sent to ${data.customerEmail} for order ${data.orderId}`);
     return { messageId: result?.data?.id || undefined };
   } catch (err: any) {
@@ -362,7 +381,7 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
   ).join('');
 
   try {
-    const result = await resend.emails.send({
+    const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       to: ownerEmail,
       subject: `🔔 New Order #${shortId} — ₹${data.finalAmount.toLocaleString('en-IN')} from ${data.customerName}`,
@@ -440,6 +459,10 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
         </html>
       `,
     });
+    if (result.error) {
+      console.error(`[Email] Failed to send owner notification for order ${data.orderId} via Resend:`, result.error);
+      return { error: result.error.message || JSON.stringify(result.error) };
+    }
     console.log(`[Email] Owner notification sent to ${ownerEmail} for order ${data.orderId}`);
     return { messageId: result?.data?.id || undefined };
   } catch (err: any) {

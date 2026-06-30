@@ -163,6 +163,13 @@ export const listAllOrders = async (req: AuthenticatedRequest, res: Response): P
       paymentStatus: order.paymentStatus,
       orderStatus: order.orderStatus,
       createdAt: order.createdAt.toISOString(),
+      shippingName: order.shippingName,
+      shippingPhone: order.shippingPhone,
+      shippingAddress: order.shippingAddress,
+      paymentGatewayTxnId: order.paymentGatewayTxnId || '',
+      totalAmount: String(order.totalAmount),
+      discountAmount: String(order.discountAmount),
+      gstAmount: String(order.gstAmount),
       user: order.user ? {
         name: order.user.name || '',
         email: order.user.email,
