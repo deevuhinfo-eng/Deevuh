@@ -62,7 +62,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     const staticCopy = staticId ? PRODUCTS.find((p) => p.id === staticId) : undefined;
     
     return {
-      id: dbProduct.id,
+      id: staticId || dbProduct.id,
       title: dbProduct.title,
       price: Number(dbProduct.basePrice || dbProduct.price || 0),
       category: dbProduct.category,
@@ -813,7 +813,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                     Select Size
                   </span>
-                  {["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit"].includes(product.id) && (
+                  {["baby-blue-coordset", "beige-outfit", "dupatta-beige-outfit", "brown-coordset"].includes(product.id) && (
                     <button
                       onClick={() => setShowSizeGuide(true)}
                       style={{

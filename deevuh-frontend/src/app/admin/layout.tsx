@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Customers', href: '/admin/customers', icon: '◎' },
   { label: 'Abandoned Carts', href: '/admin/abandoned-carts', icon: '◌' },
   { label: 'Coupons', href: '/admin/coupons', icon: '◐' },
+  { label: 'Settings', href: '/admin/settings', icon: '⚙' },
   { label: 'Analytics', href: '/admin/analytics', icon: '◑' },
   { label: 'Uploads', href: '/admin/uploads', icon: '◒' },
 ];

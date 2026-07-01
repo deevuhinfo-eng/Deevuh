@@ -192,6 +192,9 @@ export interface OrderEmailData {
     quantity: number;
     unitPrice: number;
   }>;
+  isCOD?: boolean;
+  bookingAmount?: number;
+  remainingCODAmount?: number;
 }
 
 /**
@@ -227,13 +230,14 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
 
   const shortId = data.orderId.split('-')[0].toUpperCase();
   const frontendUrl = process.env.FRONTEND_URL || 'https://deevuh.in';
+  const isCodOrder = !!data.isCOD;
 
   try {
     const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       replyTo: REPLY_TO,
       to: data.customerEmail,
-      subject: `Order Confirmed — #${shortId}`,
+      subject: isCodOrder ? `Order Reserved — #${shortId} [COD]` : `Order Confirmed — #${shortId}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -244,9 +248,13 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
                 <span style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#c0392b;letter-spacing:0.15em;">DEEVUH</span>
               </div>
 
-              <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:600;color:#1a1a1a;margin:0 0 8px;">Thank you, ${data.customerName}!</h1>
+              <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:600;color:#1a1a1a;margin:0 0 8px;">
+                ${isCodOrder ? `Order Reserved, ${data.customerName}!` : `Thank you, ${data.customerName}!`}
+              </h1>
               <p style="font-size:15px;line-height:1.7;color:#5a5a5a;margin:0 0 28px;">
-                Your payment has been confirmed and your order is now being processed. We'll prepare your garments with care.
+                ${isCodOrder 
+                  ? `Your Cash on Delivery order reservation has been received. You have paid a ₹${data.bookingAmount || 0} reservation fee. The remaining balance of ₹${(data.remainingCODAmount || 0).toLocaleString('en-IN')} will be collected upon delivery.`
+                  : 'Your payment has been confirmed and your order is now being processed. We\'ll prepare your garments with care.'}
               </p>
 
               <!-- Order Reference -->
@@ -257,11 +265,11 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
                 </div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                   <span style="font-size:13px;color:#999;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Payment</span>
-                  <span style="font-size:13px;color:#1a1a1a;font-weight:600;">${data.paymentMethod}</span>
+                  <span style="font-size:13px;color:#1a1a1a;font-weight:600;">${isCodOrder ? 'Cash on Delivery (COD)' : data.paymentMethod}</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
                   <span style="font-size:13px;color:#999;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Transaction</span>
-                  <span style="font-size:13px;color:#1a1a1a;font-weight:500;">${data.paymentGatewayTxnId}</span>
+                  <span style="font-size:13px;color:#1a1a1a;font-weight:500;">${data.paymentGatewayTxnId || 'N/A'}</span>
                 </div>
               </div>
 
@@ -283,8 +291,8 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
               <!-- Pricing Summary -->
               <div style="border-top:1px solid #e8e0db;padding-top:16px;margin-bottom:24px;">
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                  <span style="font-size:13px;color:#999;">Subtotal</span>
-                  <span style="font-size:13px;color:#1a1a1a;">₹${data.totalAmount.toLocaleString('en-IN')}</span>
+                  <span style="font-size:13px;color:#999;">Order Total</span>
+                  <span style="font-size:13px;color:#1a1a1a;">₹${data.finalAmount.toLocaleString('en-IN')}</span>
                 </div>
                 ${data.discountAmount > 0 ? `
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
@@ -299,10 +307,22 @@ export const sendCustomerConfirmationEmail = async (data: OrderEmailData): Promi
                   <span style="font-size:13px;color:#999;">Shipping</span>
                   <span style="font-size:13px;color:#28a745;font-weight:600;">Free</span>
                 </div>
+                
+                ${isCodOrder ? `
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#28a745;font-weight:600;">
+                  <span style="font-size:13px;">Reserve Today (Paid)</span>
+                  <span style="font-size:13px;">₹${(data.bookingAmount || 0).toLocaleString('en-IN')}</span>
+                </div>
                 <div style="display:flex;justify-content:space-between;border-top:2px solid #1a1a1a;padding-top:10px;margin-top:8px;">
+                  <span style="font-size:15px;font-weight:700;color:#1a1a1a;">Pay on Delivery</span>
+                  <span style="font-size:15px;font-weight:700;color:#c0392b;">₹${(data.remainingCODAmount || 0).toLocaleString('en-IN')}</span>
+                </div>
+                ` : `
+                <div style={{display:'flex',justifyContent:'space-between',borderTop:'2px solid #1a1a1a',paddingTop:'10px',marginTop:'8px'}}>
                   <span style="font-size:15px;font-weight:700;color:#1a1a1a;">Total Paid</span>
                   <span style="font-size:15px;font-weight:700;color:#1a1a1a;">₹${data.finalAmount.toLocaleString('en-IN')}</span>
                 </div>
+                `}
               </div>
 
               <!-- Shipping -->
@@ -380,11 +400,17 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
     </tr>`
   ).join('');
 
+  const isCodOrder = !!data.isCOD;
+  const subjectText = isCodOrder
+    ? `🔔 New COD Order #${shortId} — Reserved via ₹${data.bookingAmount} from ${data.customerName}`
+    : `🔔 New Order #${shortId} — ₹${data.finalAmount.toLocaleString('en-IN')} from ${data.customerName}`;
+  const headerText = isCodOrder ? '🔔 NEW COD ORDER RECEIVED' : '🔔 NEW ORDER RECEIVED';
+
   try {
     const result = await getResendClient().emails.send({
       from: FROM_ADDRESS,
       to: ownerEmail,
-      subject: `🔔 New Order #${shortId} — ₹${data.finalAmount.toLocaleString('en-IN')} from ${data.customerName}`,
+      subject: subjectText,
       html: `
         <!DOCTYPE html>
         <html>
@@ -392,7 +418,7 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
           <body style="margin:0;padding:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:#f5f5f5;">
             <div style="max-width:600px;margin:32px auto;background:#fff;border:1px solid #ddd;padding:32px;">
               <div style="background:#c0392b;color:#fff;padding:16px 24px;margin:-32px -32px 24px;text-align:center;">
-                <h1 style="margin:0;font-size:20px;font-weight:700;letter-spacing:0.1em;">🔔 NEW ORDER RECEIVED</h1>
+                <h1 style="margin:0;font-size:20px;font-weight:700;letter-spacing:0.1em;">${headerText}</h1>
               </div>
 
               <table style="width:100%;margin-bottom:20px;">
@@ -405,13 +431,32 @@ export const sendOwnerNotificationEmail = async (data: OrderEmailData): Promise<
                   <td style="padding:6px 0;font-size:14px;">${now}</td>
                 </tr>
                 <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Payment ID</td>
-                  <td style="padding:6px 0;font-size:14px;font-family:monospace;">${data.paymentGatewayTxnId}</td>
+                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Payment Method</td>
+                  <td style="padding:6px 0;font-size:14px;font-weight:700;">${isCodOrder ? 'Cash on Delivery (COD)' : data.paymentMethod}</td>
                 </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Transaction ID</td>
+                  <td style="padding:6px 0;font-size:14px;font-family:monospace;">${data.paymentGatewayTxnId || 'N/A'}</td>
+                </tr>
+                ${isCodOrder ? `
+                <tr>
+                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Booking Fee Paid</td>
+                  <td style="padding:6px 0;font-size:16px;font-weight:700;color:green;">₹${(data.bookingAmount || 0).toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Pay on Delivery</td>
+                  <td style="padding:6px 0;font-size:16px;font-weight:700;color:#c0392b;">₹${(data.remainingCODAmount || 0).toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Total Order Value</td>
+                  <td style="padding:6px 0;font-size:16px;font-weight:700;color:#333;">₹${data.finalAmount.toLocaleString('en-IN')}</td>
+                </tr>
+                ` : `
                 <tr>
                   <td style="padding:6px 0;font-size:13px;color:#888;font-weight:600;">Amount Paid</td>
                   <td style="padding:6px 0;font-size:18px;font-weight:700;color:#c0392b;">₹${data.finalAmount.toLocaleString('en-IN')}</td>
                 </tr>
+                `}
               </table>
 
               <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">

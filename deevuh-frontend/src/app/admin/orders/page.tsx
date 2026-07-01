@@ -34,6 +34,12 @@ interface Order {
     phone: string;
   };
   items: OrderItem[];
+  paymentMethod: string;
+  isCOD: boolean;
+  bookingAmount?: string;
+  remainingCODAmount?: string;
+  bookingPaymentTxnId?: string;
+  codConfirmedAt?: string;
 }
 
 export default function AdminOrdersPage() {
@@ -72,9 +78,12 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const filteredOrders = filterStatus === "ALL" 
-    ? orders 
-    : orders.filter(o => o.orderStatus === filterStatus);
+  const filteredOrders = orders.filter((o) => {
+    if (filterStatus === "ALL") return true;
+    if (filterStatus === "ONLINE") return o.paymentMethod === "ONLINE";
+    if (filterStatus === "COD") return o.paymentMethod === "COD";
+    return o.orderStatus === filterStatus;
+  });
 
   if (loading) {
     return (
@@ -89,7 +98,7 @@ export default function AdminOrdersPage() {
       
       {/* LEFT: ORDERS LIST */}
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "32px" }}>
           <div>
             <h1 style={{ fontSize: "36px", fontWeight: 600, marginBottom: "8px" }}>Orders</h1>
             <p style={{ color: "var(--color-on-surface-variant)", fontSize: "14px" }}>
@@ -97,8 +106,8 @@ export default function AdminOrdersPage() {
             </p>
           </div>
           
-          <div style={{ display: "flex", gap: "10px" }}>
-            {["ALL", "CREATED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((status) => (
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {["ALL", "ONLINE", "COD", "CREATED", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -140,7 +149,8 @@ export default function AdminOrdersPage() {
                 <th>Order Ref</th>
                 <th>Placed By</th>
                 <th>Capsule Pieces</th>
-                <th>Total Paid</th>
+                <th>Method</th>
+                <th>Total Gross</th>
                 <th>Payment</th>
                 <th>Order Status</th>
                 <th>Actions</th>
@@ -149,7 +159,7 @@ export default function AdminOrdersPage() {
             <tbody>
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--color-on-surface-variant)" }}>
                     No orders found.
                   </td>
                 </tr>
@@ -172,22 +182,38 @@ export default function AdminOrdersPage() {
                       </div>
                     ))}
                   </td>
+                  <td>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: order.paymentMethod === "COD" ? "var(--color-ruby)" : "var(--color-charcoal)",
+                        color: "var(--color-cream)",
+                        fontWeight: 700,
+                        fontSize: "10px",
+                        letterSpacing: "0.05em",
+                        padding: "4px 8px",
+                      }}
+                    >
+                      {order.paymentMethod || "ONLINE"}
+                    </span>
+                  </td>
                   <td style={{ fontWeight: 700 }}>
                     ₹{Number(order.finalAmount).toLocaleString("en-IN")}
                   </td>
                   <td>
                     <span className={`badge ${
                       order.paymentStatus === "SUCCESS" ? "badge-success" :
+                      order.paymentStatus === "BOOKING_RECEIVED" ? "badge-primary" :
                       order.paymentStatus === "PENDING" ? "badge-warning" : "badge-error"
                     }`}>
-                      {order.paymentStatus}
+                      {order.paymentStatus === "BOOKING_RECEIVED" ? "BOOKING RECEIVED" : order.paymentStatus}
                     </span>
                   </td>
                   <td>
                     <span className={`badge ${
                       order.orderStatus === "DELIVERED" ? "badge-success" :
-                      order.orderStatus === "CANCELLED" ? "badge-error" : 
-                      order.orderStatus === "SHIPPED" ? "badge-primary" : "badge-warning"
+                      (order.orderStatus === "CANCELLED" || order.orderStatus === "RETURNED") ? "badge-error" :
+                      (order.orderStatus === "SHIPPED" || order.orderStatus === "OUT_FOR_DELIVERY") ? "badge-primary" : "badge-warning"
                     }`}>
                       {order.orderStatus}
                     </span>
@@ -208,10 +234,14 @@ export default function AdminOrdersPage() {
                       }}
                     >
                       <option value="CREATED">CREATED</option>
+                      <option value="CONFIRMED">CONFIRMED</option>
                       <option value="PROCESSING">PROCESSING</option>
+                      <option value="PACKED">PACKED</option>
                       <option value="SHIPPED">SHIPPED</option>
+                      <option value="OUT_FOR_DELIVERY">OUT FOR DELIVERY</option>
                       <option value="DELIVERED">DELIVERED</option>
                       <option value="CANCELLED">CANCELLED</option>
+                      <option value="RETURNED">RETURNED</option>
                     </select>
                   </td>
                 </tr>
@@ -254,6 +284,31 @@ export default function AdminOrdersPage() {
                 <div style={{ fontFamily: "monospace", fontWeight: 600, marginTop: "4px", fontSize: "12px", wordBreak: "break-all" }}>
                   {activeOrderDetails.paymentGatewayTxnId}
                 </div>
+              </div>
+            )}
+
+            {activeOrderDetails.paymentMethod === "COD" && (
+              <div style={{ padding: "16px", border: "1px dashed var(--color-ruby)", backgroundColor: "rgba(152, 17, 30, 0.03)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-ruby)", textTransform: "uppercase" }}>COD BREAKDOWN</span>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--color-on-surface-variant)" }}>Booking Paid</span>
+                  <span style={{ fontWeight: 700, color: "green" }}>₹{Number(activeOrderDetails.bookingAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--color-on-surface-variant)" }}>Pay on Delivery</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-ruby)" }}>₹{Number(activeOrderDetails.remainingCODAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
+                {activeOrderDetails.bookingPaymentTxnId && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", borderTop: "1px solid var(--color-outline-variant)", paddingTop: "8px" }}>
+                    <span style={{ color: "var(--color-on-surface-variant)" }}>Booking Txn</span>
+                    <span style={{ fontFamily: "monospace" }}>{activeOrderDetails.bookingPaymentTxnId}</span>
+                  </div>
+                )}
+                {activeOrderDetails.codConfirmedAt && (
+                  <div style={{ fontSize: "11px", color: "var(--color-on-surface-variant)" }}>
+                    Confirmed on: {new Date(activeOrderDetails.codConfirmedAt).toLocaleString("en-IN")}
+                  </div>
+                )}
               </div>
             )}
 
@@ -310,18 +365,38 @@ export default function AdminOrdersPage() {
             {/* Advance shipment actions */}
             <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)" }}>ADVANCE SHIPMENT STAGE</span>
-              <div style={{ display: "flex", gap: "8px" }}>
-                {activeOrderDetails.orderStatus === "CREATED" && (
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {activeOrderDetails.orderStatus === "CREATED" && activeOrderDetails.paymentMethod === "COD" && (
+                  <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "CONFIRMED")} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                    Confirm Booking
+                  </button>
+                )}
+                {activeOrderDetails.orderStatus === "CREATED" && activeOrderDetails.paymentMethod === "ONLINE" && (
+                  <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "PROCESSING")} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                    Accept & Tailor
+                  </button>
+                )}
+                {activeOrderDetails.orderStatus === "CONFIRMED" && (
                   <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "PROCESSING")} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                     Accept & Tailor
                   </button>
                 )}
                 {activeOrderDetails.orderStatus === "PROCESSING" && (
+                  <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "PACKED")} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                    Pack Outfit
+                  </button>
+                )}
+                {activeOrderDetails.orderStatus === "PACKED" && (
                   <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "SHIPPED")} className="btn btn-primary btn-sm" style={{ flex: 1, backgroundColor: "var(--color-ruby)" }}>
                     Dispatch Outfit
                   </button>
                 )}
                 {activeOrderDetails.orderStatus === "SHIPPED" && (
+                  <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "OUT_FOR_DELIVERY")} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                    Out for Delivery
+                  </button>
+                )}
+                {activeOrderDetails.orderStatus === "OUT_FOR_DELIVERY" && (
                   <button onClick={() => transitionOrderStatus(activeOrderDetails.id, "DELIVERED")} className="btn btn-primary btn-sm" style={{ flex: 1, backgroundColor: "green", borderColor: "green" }}>
                     Mark Delivered
                   </button>

@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import prisma from '../config/database.js';
 import { runReconciliation } from '../modules/payments/reconciliation.service.js';
 import { retryFailedEmails } from '../modules/payments/email-retry.service.js';
+import { cancelStaleCODOrders } from '../modules/payments/cod-auto-cancel.service.js';
 
 const ABANDONED_CART_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 const UNPAID_ORDER_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
@@ -31,13 +32,14 @@ const cartRecoveryJob = cron.schedule('0 */6 * * *', async () => {
 
 /**
  * Unpaid Order Cancellation — Every 15 minutes
- * Cancels orders stuck in PENDING payment status for 30+ minutes.
+ * Cancels online orders stuck in PENDING payment status for 30+ minutes.
  */
 const unpaidOrderCancelJob = cron.schedule('*/15 * * * *', async () => {
   try {
     const threshold = new Date(Date.now() - UNPAID_ORDER_THRESHOLD_MS);
     const ordersToCancel = await prisma.order.findMany({
       where: {
+        isCOD: { not: true },
         paymentStatus: 'PENDING',
         createdAt: { lte: threshold },
         orderStatus: { not: 'CANCELLED' },
@@ -54,24 +56,43 @@ const unpaidOrderCancelJob = cron.schedule('*/15 * * * *', async () => {
           data: {
             orderStatus: 'CANCELLED',
             paymentStatus: 'FAILED',
+            stockReserved: false,
           },
         });
 
-        for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.productVariantId },
-            data: { stockQty: { increment: item.quantity } },
-          });
+        // Restore stock only if it was actually reserved
+        if (order.stockReserved) {
+          for (const item of order.items) {
+            await tx.productVariant.update({
+              where: { id: item.productVariantId },
+              data: { stockQty: { increment: item.quantity } },
+            });
+          }
         }
       });
-      console.log(`[CRON] Unpaid Order Cancel: Cancelled order ${order.id} and restored stock.`);
+      console.log(`[CRON] Unpaid Order Cancel: Cancelled order ${order.id} (stock restored: ${order.stockReserved}).`);
     }
 
     if (ordersToCancel.length > 0) {
-      console.log(`[CRON] Unpaid Order Cancel: Cancelled ${ordersToCancel.length} unpaid order(s).`);
+      console.log(`[CRON] Unpaid Order Cancel: Cancelled ${ordersToCancel.length} unpaid online order(s).`);
     }
   } catch (error) {
     console.error('[CRON] Unpaid Order Cancel Error:', error);
+  }
+});
+
+/**
+ * COD Auto-Cancellation — Every hour
+ * Cancels unconfirmed COD orders that exceeded the settings threshold.
+ */
+const codAutoCancelJob = cron.schedule('0 * * * *', async () => {
+  try {
+    const result = await cancelStaleCODOrders();
+    if (result.cancelled > 0) {
+      console.log(`[CRON] COD Auto-Cancel: Cancelled ${result.cancelled} stale COD order(s).`);
+    }
+  } catch (error) {
+    console.error('[CRON] COD Auto-Cancel Error:', error);
   }
 });
 
@@ -125,10 +146,11 @@ const emailRetryJob = cron.schedule('*/5 * * * *', async () => {
 export function initCronJobs(): void {
   cartRecoveryJob.start();
   unpaidOrderCancelJob.start();
+  codAutoCancelJob.start();
   lowStockAlertJob.start();
   reconciliationJob.start();
   emailRetryJob.start();
-  console.log('[CRON] All scheduled jobs initialized (including email retry).');
+  console.log('[CRON] All scheduled jobs initialized (including COD auto-cancel and email retry).');
 }
 
-export { cartRecoveryJob, unpaidOrderCancelJob, lowStockAlertJob, reconciliationJob, emailRetryJob };
+export { cartRecoveryJob, unpaidOrderCancelJob, codAutoCancelJob, lowStockAlertJob, reconciliationJob, emailRetryJob };

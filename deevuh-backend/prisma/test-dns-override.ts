@@ -17,7 +17,7 @@ const originalLookup = dns.lookup;
 };
 
 async function main() {
-  const url = 'postgresql://postgres:Unicorndeevuh%402026@db.qgqwdqtjaqapomgtfgvn.supabase.co:6543/postgres?pgbouncer=true';
+  const url = 'postgresql://postgres:Unicorndeevuh%402026@db.qgqwdqtjaqapomgtfgvn.supabase.co:5432/postgres';
   console.log(`Connecting to: ${url.replace(/:[^@]+@/, ':****@')}`);
   const prisma = new PrismaClient({
     datasources: {

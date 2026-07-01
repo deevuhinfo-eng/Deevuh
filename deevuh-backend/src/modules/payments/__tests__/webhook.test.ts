@@ -12,6 +12,7 @@ jest.mock('../../../config/database.js', () => ({
     },
     productVariant: {
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     processedWebhook: {
       findUnique: jest.fn(),
@@ -79,7 +80,13 @@ describe('PayU Webhook Processing Unit Tests', () => {
     expect(result).toBe(true);
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { paymentGatewayTxnId: 'txn_1' },
-      data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+      data: {
+        paymentStatus: 'SUCCESS',
+        orderStatus: 'PROCESSING',
+        stockReserved: true,
+        bookingPaymentTxnId: null,
+        codConfirmedAt: null,
+      },
     });
     expect(sendOrderEmails).toHaveBeenCalled();
   });
@@ -110,7 +117,13 @@ describe('PayU Webhook Processing Unit Tests', () => {
     expect(result).toBe(true);
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { paymentGatewayTxnId: 'txn_2' },
-      data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+      data: {
+        paymentStatus: 'SUCCESS',
+        orderStatus: 'PROCESSING',
+        stockReserved: true,
+        bookingPaymentTxnId: null,
+        codConfirmedAt: null,
+      },
     });
     expect(sendOrderEmails).toHaveBeenCalled();
   });
@@ -140,18 +153,24 @@ describe('PayU Webhook Processing Unit Tests', () => {
     const result = await processPayUWebhook(payload);
 
     expect(result).toBe(true);
-    expect(prisma.productVariant.update).toHaveBeenCalledTimes(2);
-    expect(prisma.productVariant.update).toHaveBeenNthCalledWith(1, {
-      where: { id: 'variant_1' },
+    expect(prisma.productVariant.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.productVariant.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: 'variant_1', stockQty: { gte: 2 } },
       data: { stockQty: { decrement: 2 } },
     });
-    expect(prisma.productVariant.update).toHaveBeenNthCalledWith(2, {
-      where: { id: 'variant_2' },
+    expect(prisma.productVariant.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: 'variant_2', stockQty: { gte: 1 } },
       data: { stockQty: { decrement: 1 } },
     });
     expect(prisma.order.update).toHaveBeenCalledWith({
       where: { paymentGatewayTxnId: 'txn_3' },
-      data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+      data: {
+        paymentStatus: 'SUCCESS',
+        orderStatus: 'PROCESSING',
+        stockReserved: true,
+        bookingPaymentTxnId: null,
+        codConfirmedAt: null,
+      },
     });
     expect(sendOrderEmails).toHaveBeenCalled();
   });

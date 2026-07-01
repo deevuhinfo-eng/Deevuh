@@ -179,6 +179,29 @@ async function main() {
     console.log(`✅ Coupon: ${created.code} (${created.discountType}: ${created.discountValue})`);
   }
 
+  // 4. Seed default SiteSettings for COD configuration
+  const defaultSettings: { key: string; value: string }[] = [
+    { key: 'cod_enabled', value: 'true' },
+    { key: 'cod_max_order_amount', value: '3000' },
+    { key: 'cod_booking_amount', value: '99' },
+    { key: 'cod_free_above', value: '0' },
+    { key: 'cod_max_per_customer', value: '5' },
+    { key: 'cod_blacklist_enabled', value: 'true' },
+    { key: 'cod_allow_sale_items', value: 'true' },
+    { key: 'cod_require_phone_verification', value: 'false' },
+    { key: 'cod_auto_cancel_hours', value: '24' },
+    { key: 'cod_allowed_states', value: '[]' },
+  ];
+
+  for (const setting of defaultSettings) {
+    await prisma.siteSettings.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: setting,
+    });
+  }
+  console.log(`✅ Site Settings: ${defaultSettings.length} COD defaults seeded`);
+
   console.log('\n🎉 Seed complete!');
   console.log('\n📋 Admin Credentials:');
   console.log('   Email: admin@deevuh.com');

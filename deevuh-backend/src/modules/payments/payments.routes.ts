@@ -5,14 +5,11 @@ import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { calculateGST, generatePayUHash, processPayUWebhook } from './payments.service.js';
+import { checkCODEligibility } from './cod-eligibility.service.js';
+import { getCODSettings } from '../admin/settings.service.js';
 
 const router = Router();
 
-/**
- * Whether PayU credentials are active.
- * When PAYU_MERCHANT_KEY === 'DISABLED', orders are placed as
- * PENDING_COD (Cash-on-Delivery) and confirmed manually by the admin.
- */
 const PAYU_ENABLED =
   process.env.PAYU_MERCHANT_KEY && process.env.PAYU_MERCHANT_KEY !== 'DISABLED';
 
@@ -21,7 +18,41 @@ const checkoutSchema = z.object({
   shippingPhone: z.string().min(10, 'Invalid phone number').max(20),
   shippingAddress: z.string().min(10, 'Address must be at least 10 characters').max(1000),
   couponCode: z.string().max(50).optional(),
+  paymentMethod: z.enum(['ONLINE', 'COD']).default('ONLINE'),
 });
+
+router.get(
+  '/cod-eligibility',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ status: 'error', message: 'Authentication required.' });
+        return;
+      }
+
+      const cart = await prisma.cart.findFirst({
+        where: { userId, status: 'active' },
+        include: { items: { include: { variant: true } } },
+      });
+
+      if (!cart || cart.items.length === 0) {
+        res.status(200).json({
+          status: 'success',
+          data: { eligible: false, reason: 'Cart is empty.', bookingAmount: 0, remainingAmount: 0 }
+        });
+        return;
+      }
+
+      const cartTotal = cart.items.reduce((sum, item) => sum + Number(item.variant.price) * item.quantity, 0);
+      const result = await checkCODEligibility(userId, cartTotal, prisma);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error: any) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  }
+);
 
 /**
  * POST /api/checkout/create-order
@@ -56,7 +87,7 @@ router.post(
         return;
       }
 
-      const { shippingName, shippingPhone, shippingAddress, couponCode } = req.body;
+      const { shippingName, shippingPhone, shippingAddress, couponCode, paymentMethod } = req.body;
 
       // Get active cart with full variant and product data
       const cart = await prisma.cart.findFirst({
@@ -81,14 +112,22 @@ router.post(
         totalAmount += Number(item.variant.price) * item.quantity;
       }
 
+      // Verify COD eligibility if user requested COD
+      if (paymentMethod === 'COD') {
+        const eligibility = await checkCODEligibility(userId, totalAmount, prisma);
+        if (!eligibility.eligible) {
+          res.status(400).json({ status: 'error', message: eligibility.reason || 'Cash on Delivery is not available.' });
+          return;
+        }
+      }
+
       const txnid = `DEEVUH_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
 
       // SINGLE ATOMIC TRANSACTION:
       // 1. Validate coupon if provided
-      // 2. Reserve stock
-      // 3. Create order
-      // 4. Increment coupon usage
-      // 5. Convert cart
+      // 2. Create order (stock reservation deferred to payment webhook)
+      // 3. Increment coupon usage
+      // 4. Convert cart
       const { order, finalAmount, gstAmount, discountAmount } = await prisma.$transaction(async (tx) => {
         let discountAmount = 0;
         let couponId: string | null = null;
@@ -115,24 +154,22 @@ router.post(
         const finalAmount = Math.round((totalAmount - discountAmount) * 100) / 100;
         const gstAmount = calculateGST(finalAmount);
 
-        // Step 1: Reserve stock atomically
-        for (const item of cart.items) {
-          const updated = await tx.productVariant.updateMany({
-            where: {
-              id: item.productVariantId,
-              stockQty: { gte: item.quantity },
-            },
-            data: { stockQty: { decrement: item.quantity } },
-          });
+        // Fetch settings if payment method is COD
+        let bookingAmount = null;
+        let remainingCODAmount = null;
+        let isCOD = false;
 
-          if (updated.count === 0) {
-            throw new Error(
-              `Insufficient stock for ${item.variant.product.title} (${item.variant.size}).`
-            );
+        if (paymentMethod === 'COD') {
+          isCOD = true;
+          const codSettings = await getCODSettings();
+          bookingAmount = codSettings.bookingAmount;
+          if (codSettings.freeAbove > 0 && finalAmount > codSettings.freeAbove) {
+            bookingAmount = 0;
           }
+          remainingCODAmount = Math.round((finalAmount - bookingAmount) * 100) / 100;
         }
 
-        // Step 2: Create order
+        // Create order
         const createdOrder = await tx.order.create({
           data: {
             userId,
@@ -145,8 +182,14 @@ router.post(
             gstAmount,
             finalAmount,
             paymentGatewayTxnId: txnid,
+            paymentMethod: paymentMethod === 'COD' ? 'COD' : 'ONLINE',
             paymentStatus: 'PENDING',
             orderStatus: 'CREATED',
+            isCOD,
+            codEligible: true,
+            bookingAmount,
+            remainingCODAmount,
+            stockReserved: false,
             items: {
               create: cart.items.map((item) => ({
                 productVariantId: item.productVariantId,
@@ -157,7 +200,7 @@ router.post(
           },
         });
 
-        // Step 3: Increment coupon usage
+        // Increment coupon usage
         if (couponId) {
           await tx.coupon.update({
             where: { id: couponId },
@@ -165,7 +208,7 @@ router.post(
           });
         }
 
-        // Step 4: Convert cart
+        // Convert cart
         await tx.cart.update({
           where: { id: cart.id },
           data: { status: 'converted' },
@@ -175,9 +218,104 @@ router.post(
       });
 
       const user = await prisma.user.findUnique({ where: { id: userId } });
+      const chargeAmount = order.isCOD ? Number(order.bookingAmount || 0) : finalAmount;
+
+      // Handle Free COD booking fee edge case
+      if (order.isCOD && chargeAmount === 0) {
+        await prisma.$transaction(async (tx) => {
+          // Reserve stock atomically
+          for (const item of cart.items) {
+            const updated = await tx.productVariant.updateMany({
+              where: {
+                id: item.productVariantId,
+                stockQty: { gte: item.quantity },
+              },
+              data: { stockQty: { decrement: item.quantity } },
+            });
+
+            if (updated.count === 0) {
+              throw new Error(
+                `Insufficient stock for ${item.variant.product.title} (${item.variant.size}).`
+              );
+            }
+          }
+
+          // Update order status directly
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              paymentStatus: 'BOOKING_RECEIVED',
+              orderStatus: 'CONFIRMED',
+              stockReserved: true,
+            },
+          });
+        });
+
+        // Trigger emails asynchronously
+        const updatedOrder = await prisma.order.findUnique({
+          where: { id: order.id },
+          include: {
+            user: true,
+            items: {
+              include: {
+                variant: { include: { product: true } },
+              },
+            },
+          },
+        });
+
+        if (updatedOrder?.user?.email) {
+          const emailData = {
+            orderId: updatedOrder.id,
+            customerName: updatedOrder.shippingName,
+            customerEmail: updatedOrder.user.email,
+            customerPhone: updatedOrder.shippingPhone,
+            shippingAddress: updatedOrder.shippingAddress,
+            totalAmount: Number(updatedOrder.totalAmount),
+            discountAmount: Number(updatedOrder.discountAmount),
+            gstAmount: Number(updatedOrder.gstAmount),
+            finalAmount: Number(updatedOrder.finalAmount),
+            paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || txnid,
+            paymentMethod: 'COD',
+            isCOD: true,
+            bookingAmount: 0,
+            remainingCODAmount: Number(updatedOrder.remainingCODAmount || 0),
+            items: updatedOrder.items.map((item: any) => ({
+              productTitle: item.variant?.product?.title || 'Tailored Garment',
+              size: item.variant?.size || 'Custom',
+              quantity: item.quantity,
+              unitPrice: Number(item.unitPrice),
+            })),
+          };
+
+          const { sendOrderEmails } = await import('../auth/email.service.js');
+          sendOrderEmails(emailData).catch((err: any) => {
+            console.error(`[Order Email Error] Error triggering emails for free COD:`, err.message);
+          });
+        }
+
+        res.status(201).json({
+          status: 'success',
+          data: {
+            orderId: order.id,
+            paymentMethod: 'COD',
+            summary: {
+              totalAmount,
+              discountAmount,
+              gstAmount,
+              finalAmount,
+              isCOD: true,
+              bookingAmount: 0,
+              remainingCODAmount: finalAmount,
+            },
+          },
+        });
+        return;
+      }
+
       const payuHash = generatePayUHash(
         txnid,
-        finalAmount.toFixed(2),
+        chargeAmount.toFixed(2),
         `Order ${order.id}`,
         shippingName,
         user?.email || ''
@@ -187,11 +325,11 @@ router.post(
         status: 'success',
         data: {
           orderId: order.id,
-          paymentMethod: 'PAYU',
+          paymentMethod: order.isCOD ? 'COD' : 'PAYU',
           paymentParams: {
             key: process.env.PAYU_MERCHANT_KEY,
             txnid,
-            amount: finalAmount.toFixed(2),
+            amount: chargeAmount.toFixed(2),
             productinfo: `Order ${order.id}`,
             firstname: shippingName,
             email: user?.email,
@@ -200,7 +338,15 @@ router.post(
             surl: `${process.env.BACKEND_URL}/api/checkout/success`,
             furl: `${process.env.BACKEND_URL}/api/checkout/failure`,
           },
-          summary: { totalAmount, discountAmount, gstAmount, finalAmount },
+          summary: {
+            totalAmount,
+            discountAmount,
+            gstAmount,
+            finalAmount,
+            isCOD: order.isCOD,
+            bookingAmount: order.bookingAmount ? Number(order.bookingAmount) : null,
+            remainingCODAmount: order.remainingCODAmount ? Number(order.remainingCODAmount) : null,
+          },
         },
       });
     } catch (error: any) {

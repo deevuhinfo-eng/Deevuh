@@ -104,43 +104,60 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
     }
 
     // Verify amount matches
-    const orderAmount = Number(order.finalAmount);
+    const orderAmount = order.isCOD ? Number(order.bookingAmount || 0) : Number(order.finalAmount);
     const paidAmount = Number(amount);
     if (Math.abs(orderAmount - paidAmount) > 0.01) {
-      throw new Error(`Payment amount mismatch. Order finalAmount: ${orderAmount}, Paid amount: ${paidAmount}`);
+      throw new Error(`Payment amount mismatch. Order expected: ${orderAmount}, Paid amount: ${paidAmount}`);
     }
 
     // Skip if order was already successfully paid
-    if (order.paymentStatus === 'SUCCESS') {
+    const isAlreadyPaid = order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'BOOKING_RECEIVED';
+    if (isAlreadyPaid) {
       await tx.processedWebhook.create({
         data: { webhookId, paymentId: txnid, status: 'success' },
       });
-      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} is already in SUCCESS state.`);
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} is already in success state.`);
       return true;
     }
 
     if (statusLower === 'success') {
-      // Recovery logic: if order was previously CANCELLED or FAILED, re-deduct the stock since they were returned to inventory
-      if (order.orderStatus === 'CANCELLED' || order.paymentStatus === 'FAILED') {
-        console.log(`[PayU Webhook] [${new Date().toISOString()}] Recovering order ${order.id} from CANCELLED/FAILED state. Re-decrementing stock...`);
+      // 1. Reserve stock if it hasn't been reserved yet
+      if (!order.stockReserved) {
+        console.log(`[PayU Webhook] [${new Date().toISOString()}] Reserving stock for order ${order.id}...`);
         for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.productVariantId },
+          const updated = await tx.productVariant.updateMany({
+            where: {
+              id: item.productVariantId,
+              stockQty: { gte: item.quantity },
+            },
             data: { stockQty: { decrement: item.quantity } },
           });
+
+          if (updated.count === 0) {
+            throw new Error(`Insufficient stock for product variant ${item.productVariantId}.`);
+          }
         }
       }
 
+      const nextPaymentStatus = order.isCOD ? 'BOOKING_RECEIVED' : 'SUCCESS';
+      const nextOrderStatus = order.isCOD ? 'CONFIRMED' : 'PROCESSING';
+
       await tx.order.update({
         where: { paymentGatewayTxnId: txnid },
-        data: { paymentStatus: 'SUCCESS', orderStatus: 'PROCESSING' },
+        data: {
+          paymentStatus: nextPaymentStatus,
+          orderStatus: nextOrderStatus,
+          stockReserved: true,
+          codConfirmedAt: order.isCOD ? new Date() : null,
+          bookingPaymentTxnId: order.isCOD ? String(payload.mihpayid || txnid) : null,
+        },
       });
 
       await tx.processedWebhook.create({
         data: { webhookId, paymentId: txnid, status: 'success' },
       });
 
-      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} updated to SUCCESS / PROCESSING.`);
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} updated to ${nextPaymentStatus} / ${nextOrderStatus}.`);
       return true;
     }
 
@@ -158,19 +175,21 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
         data: { paymentStatus: 'FAILED', orderStatus: 'CANCELLED' },
       });
 
-      // Restore stock since order failed
-      for (const item of order.items) {
-        await tx.productVariant.update({
-          where: { id: item.productVariantId },
-          data: { stockQty: { increment: item.quantity } },
-        });
+      // Restore stock only if stock was actually reserved
+      if (order.stockReserved) {
+        for (const item of order.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { increment: item.quantity } },
+          });
+        }
       }
 
       await tx.processedWebhook.create({
         data: { webhookId, paymentId: txnid, status: 'failure' },
       });
 
-      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} payment failed. Marked FAILED/CANCELLED and stock restored.`);
+      console.log(`[PayU Webhook] [${new Date().toISOString()}] Order ${order.id} payment failed. Marked FAILED/CANCELLED and stock restored if reserved.`);
       return false;
     }
 
@@ -205,7 +224,10 @@ export const processPayUWebhook = async (payload: any): Promise<boolean> => {
         gstAmount: Number(updatedOrder.gstAmount),
         finalAmount: Number(updatedOrder.finalAmount),
         paymentGatewayTxnId: updatedOrder.paymentGatewayTxnId || txnid,
-        paymentMethod: 'PayU',
+        paymentMethod: updatedOrder.paymentMethod,
+        isCOD: updatedOrder.isCOD,
+        bookingAmount: updatedOrder.bookingAmount ? Number(updatedOrder.bookingAmount) : undefined,
+        remainingCODAmount: updatedOrder.remainingCODAmount ? Number(updatedOrder.remainingCODAmount) : undefined,
         items: updatedOrder.items.map((item: any) => ({
           productTitle: item.variant?.product?.title || 'Tailored Garment',
           size: item.variant?.size || 'Custom',

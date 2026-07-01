@@ -9,18 +9,22 @@ const router = Router();
 
 const orderStatusUpdateSchema = z.object({
   orderId: z.string().uuid('Invalid order ID format'),
-  orderStatus: z.enum(['CREATED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'], {
+  orderStatus: z.enum(['CREATED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'RETURNED'], {
     errorMap: () => ({ message: 'Invalid order status' }),
   }),
 });
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  CREATED: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['SHIPPED', 'CANCELLED'],
-  SHIPPED: ['DELIVERED'],
+  CREATED: ['CONFIRMED', 'PROCESSING', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['PACKED', 'SHIPPED', 'CANCELLED'],
+  PACKED: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
   DELIVERED: [],
   CANCELLED: [],
+  RETURNED: [],
 };
 
 router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -90,15 +94,41 @@ router.put('/status', adminGuard, validateRequest(orderStatusUpdateSchema), asyn
     }
 
     // Atomic state transition update (optimistic concurrency control)
-    const result = await prisma.order.updateMany({
-      where: {
-        id: orderId,
-        orderStatus: order.orderStatus,
-      },
-      data: { orderStatus },
+    const success = await prisma.$transaction(async (tx) => {
+      // Re-query inside transaction
+      const orderTx = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      if (!orderTx) return null;
+      if (orderTx.orderStatus !== order.orderStatus) {
+        throw new Error('ORDER_STATUS_DRIFT');
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { orderStatus },
+      });
+
+      // Restore stock if transitioning to CANCELLED and stock was reserved
+      if (orderStatus === 'CANCELLED' && orderTx.stockReserved) {
+        for (const item of orderTx.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { increment: item.quantity } },
+          });
+        }
+        await tx.order.update({
+          where: { id: orderId },
+          data: { stockReserved: false },
+        });
+      }
+
+      return true;
     });
 
-    if (result.count === 0) {
+    if (!success) {
       res.status(409).json({
         status: 'error',
         message: 'Order status was updated by another request. Please reload and try again.',
