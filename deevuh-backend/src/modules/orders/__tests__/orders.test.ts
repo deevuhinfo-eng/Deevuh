@@ -3,20 +3,24 @@ import app from '../../../app.js';
 import prisma from '../../../config/database.js';
 import { verifyAccessToken } from '../../auth/token.service.js';
 
-// Mock Prisma with both default and named exports inline to bypass hoisting constraints
 jest.mock('../../../config/database.js', () => {
   const client = {
     order: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
+    },
+    productVariant: {
+      update: jest.fn(),
     },
     adminUser: {
       findUnique: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
-    }
+    },
+    $transaction: jest.fn((cb) => cb(client)),
   };
   return {
     __esModule: true,

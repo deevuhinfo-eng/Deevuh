@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { OrderStatus } from '@prisma/client';
 import prisma from '../../config/database.js';
 import { AuthenticatedRequest } from '../../middleware/adminGuard.js';
+import { getSettings, updateSettings } from './settings.service.js';
 
 export const getAnalytics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -121,11 +122,15 @@ export const getDashboard = async (req: AuthenticatedRequest, res: Response): Pr
 };
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  CREATED: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['SHIPPED', 'CANCELLED'],
-  SHIPPED: ['DELIVERED'],
+  CREATED: ['CONFIRMED', 'PROCESSING', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['PACKED', 'SHIPPED', 'CANCELLED'],
+  PACKED: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
   DELIVERED: [],
   CANCELLED: [],
+  RETURNED: [],
 };
 
 export const listAllOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -144,53 +149,27 @@ export const listAllOrders = async (req: AuthenticatedRequest, res: Response): P
         items: {
           include: {
             variant: {
-              include: {
-                product: {
-                  include: { images: true }
-                }
-              }
-            }
-          }
+              include: { product: { select: { title: true, images: true } } },
+            },
+          },
         },
         coupon: true,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    const formattedOrders = orders.map((order) => ({
-      id: order.id,
-      finalAmount: String(order.finalAmount),
-      paymentStatus: order.paymentStatus,
-      orderStatus: order.orderStatus,
-      createdAt: order.createdAt.toISOString(),
-      shippingName: order.shippingName,
-      shippingPhone: order.shippingPhone,
-      shippingAddress: order.shippingAddress,
-      paymentGatewayTxnId: order.paymentGatewayTxnId || '',
-      totalAmount: String(order.totalAmount),
-      discountAmount: String(order.discountAmount),
-      gstAmount: String(order.gstAmount),
-      user: order.user ? {
-        name: order.user.name || '',
-        email: order.user.email,
-        phone: order.user.phone || '',
-      } : undefined,
-      items: order.items.map((item) => ({
-        quantity: item.quantity,
-        variant: {
-          size: item.variant.size,
-          price: String(item.variant.price),
-          product: {
-            title: item.variant.product.title,
-            images: item.variant.product.images.map((img) => img.imageUrl),
-          }
-        }
-      })),
+    // Formatting amounts to string to match client expectation
+    const formatted = orders.map((o) => ({
+      ...o,
+      totalAmount: o.totalAmount.toString(),
+      discountAmount: o.discountAmount.toString(),
+      gstAmount: o.gstAmount.toString(),
+      finalAmount: o.finalAmount.toString(),
     }));
 
     res.status(200).json({
       status: 'success',
-      data: formattedOrders,
+      data: formatted,
       pagination: {
         total: totalCount,
         page,
@@ -225,15 +204,41 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     }
 
     // Atomic state transition update (optimistic concurrency control)
-    const result = await prisma.order.updateMany({
-      where: {
-        id: orderId,
-        orderStatus: order.orderStatus,
-      },
-      data: { orderStatus },
+    const success = await prisma.$transaction(async (tx) => {
+      // Re-query inside transaction
+      const orderTx = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      if (!orderTx) return null;
+      if (orderTx.orderStatus !== order.orderStatus) {
+        throw new Error('ORDER_STATUS_DRIFT');
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: { orderStatus },
+      });
+
+      // Restore stock if transitioning to CANCELLED and stock was reserved
+      if (orderStatus === 'CANCELLED' && orderTx.stockReserved) {
+        for (const item of orderTx.items) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQty: { increment: item.quantity } },
+          });
+        }
+        await tx.order.update({
+          where: { id: orderId },
+          data: { stockReserved: false },
+        });
+      }
+
+      return true;
     });
 
-    if (result.count === 0) {
+    if (!success) {
       res.status(409).json({
         status: 'error',
         message: 'Order status was updated by another request. Please reload and try again.',
@@ -442,6 +447,49 @@ export const auditDatabaseConsistency = async (req: AuthenticatedRequest, res: R
           : 'INCONSISTENT'
       }
     });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const getPaymentSettings = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const s = await getSettings();
+    res.status(200).json({
+      status: 'success',
+      data: {
+        codEnabled: s['cod_enabled'] === 'true',
+        maxCodAmount: Number(s['cod_max_order_amount'] || '3000'),
+        bookingAmount: Number(s['cod_booking_amount'] || '99'),
+        freeCodAbove: Number(s['cod_free_above'] || '0'),
+        maxCodOrdersPerCustomer: Number(s['cod_max_per_customer'] || '5'),
+        blacklistHighRisk: s['cod_blacklist_enabled'] !== 'false',
+        allowCodOnSale: s['cod_allow_sale_items'] === 'true',
+        requirePhoneVerification: s['cod_require_phone_verification'] === 'true',
+        autoCancelHours: Number(s['cod_auto_cancel_hours'] || '24'),
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const updatePaymentSettings = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const body = req.body;
+    const updates: Record<string, string> = {
+      cod_enabled: String(body.codEnabled),
+      cod_max_order_amount: String(body.maxCodAmount),
+      cod_booking_amount: String(body.bookingAmount),
+      cod_free_above: String(body.freeCodAbove),
+      cod_max_per_customer: String(body.maxCodOrdersPerCustomer),
+      cod_blacklist_enabled: String(body.blacklistHighRisk),
+      cod_allow_sale_items: String(body.allowCodOnSale),
+      cod_require_phone_verification: String(body.requirePhoneVerification),
+      cod_auto_cancel_hours: String(body.autoCancelHours),
+    };
+    await updateSettings(updates);
+    res.status(200).json({ status: 'success', message: 'Payment settings updated successfully.' });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

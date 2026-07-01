@@ -31,6 +31,32 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [successOrder, setSuccessOrder] = useState<any | null>(null);
 
+  const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'COD'>('ONLINE');
+  const [codEligibility, setCodEligibility] = useState<{
+    eligible: boolean;
+    reason?: string;
+    bookingAmount: number;
+    remainingAmount: number;
+  } | null>(null);
+  const [codLoading, setCodLoading] = useState(false);
+
+  useEffect(() => {
+    if (isVerifying || cartItems.length === 0) return;
+    setCodLoading(true);
+    api.get(`/checkout/cod-eligibility?cartTotal=${cartTotal - couponDiscount}`)
+      .then((res: any) => {
+        const data = res.data || res;
+        setCodEligibility(data);
+        if (data && !data.eligible && paymentMethod === 'COD') {
+          setPaymentMethod('ONLINE');
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch COD eligibility:', err);
+      })
+      .finally(() => setCodLoading(false));
+  }, [isVerifying, cartItems, cartTotal, couponDiscount, paymentMethod]);
+
   useEffect(() => {
     const verifySession = async () => {
       try {
@@ -128,6 +154,7 @@ export default function CheckoutPage() {
       shippingPhone: shippingPhone.trim(),
       shippingAddress: shippingAddress.trim(),
       couponCode: appliedCoupon || undefined,
+      paymentMethod,
     };
 
     try {
@@ -138,7 +165,7 @@ export default function CheckoutPage() {
         // Refresh global cart state since items are now ordered/converted
         await syncCartWithBackend();
 
-        if (orderData.paymentMethod === 'PAYU' && orderData.paymentParams) {
+        if (orderData.paymentParams) {
           // PAYU REDIRECT: Auto-construct a hidden form and submit it programmatically
           const params = orderData.paymentParams;
           const form = document.createElement('form');
@@ -208,10 +235,12 @@ export default function CheckoutPage() {
             Bespeaking Success
           </span>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: 600, color: 'var(--color-charcoal)', marginBottom: '12px' }}>
-            Your Order is Placed
+            {successOrder.paymentMethod === 'COD' ? 'Your COD Order is Reserved' : 'Your Order is Placed'}
           </h1>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--color-on-surface-variant)', marginBottom: '32px', maxWidth: '440px', margin: '0 auto 32px' }}>
-            We have securely reserved your signature capsule garment patterns. An editor from our tailoring team will reach out to you via WhatsApp/Email to verify custom measurements.
+            {successOrder.paymentMethod === 'COD'
+              ? `We have reserved your order. You've paid a ₹${Number(successOrder.summary?.bookingAmount || 0)} booking amount. The remaining ₹${Number(successOrder.summary?.remainingCODAmount || total).toLocaleString('en-IN')} balance will be collected when your outfit arrives.`
+              : 'We have securely reserved your signature capsule garment patterns. An editor from our tailoring team will reach out to you via WhatsApp/Email to verify custom measurements.'}
           </p>
 
           <div style={{ border: borderStyle, backgroundColor: 'var(--color-surface)', padding: '24px', textAlign: 'left', marginBottom: '32px' }}>
@@ -225,14 +254,27 @@ export default function CheckoutPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-on-surface-variant)' }}>Payment Method</span>
-                <span style={{ fontWeight: 600 }}>{successOrder.paymentMethod}</span>
+                <span style={{ fontWeight: 600 }}>{successOrder.paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : successOrder.paymentMethod}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-on-surface-variant)' }}>Total Amount Paid</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-charcoal)' }}>
-                  ₹{Number(successOrder.summary?.finalAmount || total).toLocaleString('en-IN')}
-                </span>
-              </div>
+              {successOrder.paymentMethod === 'COD' ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--color-on-surface-variant)' }}>Reserve Today (Paid)</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>₹{Number(successOrder.summary?.bookingAmount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--color-on-surface-variant)' }}>Pay on Delivery</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-charcoal)' }}>₹{Number(successOrder.summary?.remainingCODAmount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-on-surface-variant)' }}>Total Amount Paid</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-charcoal)' }}>
+                    ₹{Number(successOrder.summary?.finalAmount || total).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '10px', marginTop: '4px' }}>
                 <span style={{ color: 'var(--color-on-surface-variant)' }}>Fulfillment State</span>
                 <span style={{ color: 'var(--color-ruby)', fontWeight: 700, fontSize: '12px', letterSpacing: '0.05em' }}>CREATED / WAITING VERIFICATION</span>
@@ -394,6 +436,89 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
+              {/* Payment Method Selection */}
+              <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-on-surface-variant)', marginBottom: '12px' }}>
+                  Select Payment Option
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {/* Card 1: Pay Online */}
+                  <div
+                    onClick={() => setPaymentMethod('ONLINE')}
+                    style={{
+                      border: paymentMethod === 'ONLINE' ? '2px solid var(--color-ruby)' : '1px solid var(--color-outline-variant)',
+                      backgroundColor: paymentMethod === 'ONLINE' ? 'rgba(152, 17, 30, 0.03)' : 'transparent',
+                      padding: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-charcoal)' }}>Pay Online</span>
+                      {paymentMethod === 'ONLINE' && (
+                        <span style={{ color: 'var(--color-success)', fontWeight: 700, fontSize: '11px', letterSpacing: '0.05em' }}>
+                          ✓ Recommended
+                        </span>
+                      )}
+                    </div>
+                    <ul style={{ paddingLeft: '16px', fontSize: '12px', color: 'var(--color-on-surface-variant)', margin: '0 0 16px', lineHeight: '1.6' }}>
+                      <li>Instant confirmation</li>
+                      <li>Priority dispatch</li>
+                      <li>Secure payment</li>
+                    </ul>
+                    <div style={{ fontSize: '15px', fontWeight: 700, marginTop: 'auto', borderTop: '1px solid var(--color-outline-variant)', paddingTop: '12px', color: 'var(--color-charcoal)' }}>
+                      Pay ₹{total.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Cash on Delivery */}
+                  <div
+                    onClick={() => {
+                      if (codEligibility?.eligible) {
+                        setPaymentMethod('COD');
+                      }
+                    }}
+                    style={{
+                      border: paymentMethod === 'COD' ? '2px solid var(--color-ruby)' : '1px solid var(--color-outline-variant)',
+                      backgroundColor: paymentMethod === 'COD' ? 'rgba(152, 17, 30, 0.03)' : 'transparent',
+                      padding: '20px',
+                      cursor: codEligibility?.eligible ? 'pointer' : 'not-allowed',
+                      opacity: codEligibility?.eligible ? 1 : 0.6,
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-charcoal)' }}>Cash on Delivery</span>
+                    </div>
+                    {codLoading ? (
+                      <p style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', margin: 0 }}>
+                        Checking eligibility...
+                      </p>
+                    ) : codEligibility ? (
+                      codEligibility.eligible ? (
+                        <>
+                          <p style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', margin: '0 0 12px', lineHeight: '1.5' }}>
+                            Reserve your order with a ₹{codEligibility.bookingAmount} confirmation amount. Adjusted in your total.
+                          </p>
+                          <div style={{ fontSize: '13px', fontWeight: 600, borderTop: '1px solid var(--color-outline-variant)', paddingTop: '12px', color: 'var(--color-charcoal)' }}>
+                            Reserve Today: ₹{codEligibility.bookingAmount}
+                          </div>
+                        </>
+                      ) : (
+                        <p style={{ fontSize: '12px', color: 'var(--color-error)', margin: 0, lineHeight: '1.4', fontWeight: 600 }}>
+                          {codEligibility.reason || 'Not eligible for COD.'}
+                        </p>
+                      )
+                    ) : (
+                      <p style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', margin: 0 }}>
+                        COD Not Available
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={isPlacing}
@@ -411,9 +536,14 @@ export default function CheckoutPage() {
                   marginTop: '12px',
                   opacity: isPlacing ? 0.7 : 1,
                   transition: 'opacity 0.2s',
+                  borderRadius: '2px',
                 }}
               >
-                {isPlacing ? 'Allocating Inventory...' : 'Confirm Order & Pay'}
+                {isPlacing
+                  ? 'Allocating Inventory...'
+                  : paymentMethod === 'COD'
+                  ? (codEligibility?.bookingAmount === 0 ? 'Confirm COD Order' : 'Reserve COD Order')
+                  : 'Pay Securely'}
               </button>
             </form>
           </div>
@@ -525,12 +655,29 @@ export default function CheckoutPage() {
                     <span style={{ color: 'var(--color-success)' }}>−₹{couponDiscount.toLocaleString('en-IN')}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '12px', marginTop: '4px' }}>
-                  <span style={{ fontWeight: 700 }}>Total amount</span>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--color-charcoal)' }}>
-                    ₹{total.toLocaleString('en-IN')}
-                  </span>
-                </div>
+                {paymentMethod === 'COD' && codEligibility?.eligible ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '12px' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--color-charcoal)' }}>Order Total</span>
+                      <span style={{ fontWeight: 600 }}>₹{total.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-ruby)', fontWeight: 600 }}>
+                      <span>Reserve Today</span>
+                      <span>₹{codEligibility.bookingAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-charcoal)', fontWeight: 700, borderTop: '1px dashed var(--color-outline-variant)', paddingTop: '8px' }}>
+                      <span>Pay on Delivery</span>
+                      <span>₹{codEligibility.remainingAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '12px', marginTop: '4px' }}>
+                    <span style={{ fontWeight: 700 }}>Total amount</span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--color-charcoal)' }}>
+                      ₹{total.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

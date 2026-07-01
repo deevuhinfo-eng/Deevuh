@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAnalytics, getAbandonedCarts, getDashboard, listAllOrders, updateOrderStatus, listAllCustomers, getUploadedAssets, validateProductImages, auditDatabaseConsistency } from './admin.controller.js';
+import { getAnalytics, getAbandonedCarts, getDashboard, listAllOrders, updateOrderStatus, listAllCustomers, getUploadedAssets, validateProductImages, auditDatabaseConsistency, getPaymentSettings, updatePaymentSettings } from './admin.controller.js';
 import { adminGuard } from '../../middleware/adminGuard.js';
 import { runReconciliation, getLastReconciliationReport } from '../payments/reconciliation.service.js';
 import prisma from '../../config/database.js';
@@ -15,6 +15,8 @@ router.get('/customers', adminGuard, listAllCustomers);
 router.get('/uploads', adminGuard, getUploadedAssets);
 router.get('/audit/images', adminGuard, validateProductImages);
 router.get('/audit/consistency', adminGuard, auditDatabaseConsistency);
+router.get('/settings/payments', adminGuard, getPaymentSettings);
+router.put('/settings/payments', adminGuard, updatePaymentSettings);
 
 router.post('/reconciliation/run', adminGuard, async (req, res) => {
   try {

@@ -30,3 +30,8 @@ upload-to-cloudinary.js
 generate_token.js
 extract_docx.py
 cleanup-duplicates.sql
+
+# Custom archives and build info
+*.zip
+*.tsbuildinfo
+
