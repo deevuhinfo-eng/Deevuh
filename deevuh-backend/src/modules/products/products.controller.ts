@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../../config/database.js';
 import { AuthenticatedRequest } from '../../middleware/adminGuard.js';
+import { deleteImageFromCloudinary, extractPublicId } from '../uploads/cloudinary.service.js';
 
 export const listProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -19,7 +20,11 @@ export const listProducts = async (req: Request, res: Response): Promise<void> =
         take: limit,
         include: {
           variants: true,
-          images: true,
+          images: {
+            orderBy: {
+              order: 'asc'
+            }
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -46,7 +51,14 @@ export const getProduct = async (req: Request, res: Response): Promise<void> => 
     if (uuidRegex.test(idOrSlug)) {
       product = await prisma.product.findUnique({
         where: { id: idOrSlug },
-        include: { variants: true, images: true },
+        include: {
+          variants: true,
+          images: {
+            orderBy: {
+              order: 'asc'
+            }
+          }
+        },
       });
     } else {
       // Map frontend slug to database title (supports both new updated titles and old seeded titles)
@@ -61,14 +73,28 @@ export const getProduct = async (req: Request, res: Response): Promise<void> => 
       if (titles) {
         product = await prisma.product.findFirst({
           where: { title: { in: titles } },
-          include: { variants: true, images: true },
+          include: {
+            variants: true,
+            images: {
+              orderBy: {
+                order: 'asc'
+              }
+            }
+          },
         });
       }
 
       // Fallback matching slugified titles
       if (!product) {
         const allProducts = await prisma.product.findMany({
-          include: { variants: true, images: true },
+          include: {
+            variants: true,
+            images: {
+              orderBy: {
+                order: 'asc'
+              }
+            }
+          },
         });
         product = allProducts.find(p => {
           const formattedSlug = p.title
@@ -103,7 +129,14 @@ export const createProduct = async (req: AuthenticatedRequest, res: Response): P
         variants: variants ? { create: variants } : undefined,
         images: images ? { create: images } : undefined,
       },
-      include: { variants: true, images: true },
+      include: {
+        variants: true,
+        images: {
+          orderBy: {
+            order: 'asc'
+          }
+        }
+      },
     });
 
     res.status(201).json({ status: 'success', data: product });
@@ -115,13 +148,12 @@ export const createProduct = async (req: AuthenticatedRequest, res: Response): P
 export const updateProduct = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const productId = req.params.id as string;
-    const { basePrice, ...otherData } = req.body;
+    const { basePrice, images, ...otherData } = req.body;
 
     const product = await prisma.$transaction(async (tx) => {
       await tx.product.update({
         where: { id: productId },
         data: {
-          basePrice,
           ...otherData
         },
       });
@@ -131,11 +163,61 @@ export const updateProduct = async (req: AuthenticatedRequest, res: Response): P
           where: { productId },
           data: { price: basePrice },
         });
+        await tx.product.update({
+          where: { id: productId },
+          data: { basePrice },
+        });
+      }
+
+      // Sync images if provided
+      if (images !== undefined) {
+        const existingImages = await tx.productImage.findMany({
+          where: { productId }
+        });
+
+        const newUrls = new Set(images.map((img: any) => img.imageUrl));
+        const imagesToDelete = existingImages.filter(ext => !newUrls.has(ext.imageUrl));
+
+        for (const img of imagesToDelete) {
+          await tx.productImage.delete({ where: { id: img.id } });
+          const publicId = extractPublicId(img.imageUrl);
+          if (publicId) {
+            try {
+              await deleteImageFromCloudinary(publicId);
+            } catch (err) {
+              console.error(`Failed to delete Cloudinary asset for product image: ${publicId}`, err);
+            }
+          }
+        }
+
+        for (const img of images) {
+          if (img.id) {
+            await tx.productImage.update({
+              where: { id: img.id },
+              data: { order: img.order }
+            });
+          } else {
+            await tx.productImage.create({
+              data: {
+                productId,
+                imageUrl: img.imageUrl,
+                order: img.order
+              }
+            });
+          }
+        }
       }
 
       return await tx.product.findUnique({
         where: { id: productId },
-        include: { variants: true, images: true },
+        include: {
+          variants: true,
+          images: {
+            orderBy: {
+              order: 'asc'
+            }
+          }
+        },
       });
     });
 
@@ -147,7 +229,28 @@ export const updateProduct = async (req: AuthenticatedRequest, res: Response): P
 
 export const deleteProduct = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    await prisma.product.delete({ where: { id: req.params.id as string } });
+    const productId = req.params.id as string;
+
+    // Fetch product images first to clean up Cloudinary
+    const images = await prisma.productImage.findMany({
+      where: { productId }
+    });
+
+    // Delete product (cascades database delete to product_images and variants)
+    await prisma.product.delete({ where: { id: productId } });
+
+    // Clean up Cloudinary
+    for (const img of images) {
+      const publicId = extractPublicId(img.imageUrl);
+      if (publicId) {
+        try {
+          await deleteImageFromCloudinary(publicId);
+        } catch (err) {
+          console.error(`Failed to delete Cloudinary asset for product image: ${publicId}`, err);
+        }
+      }
+    }
+
     res.status(200).json({ status: 'success', message: 'Product deleted.' });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });

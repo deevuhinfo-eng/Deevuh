@@ -1,10 +1,11 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import prisma from '../../config/database.js';
+import { deleteImageFromCloudinary, extractPublicId } from '../uploads/cloudinary.service.js';
 
 export const createReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { productId, rating, reviewText } = req.body;
+    const { productId, rating, title, reviewText, images } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -21,7 +22,20 @@ export const createReview = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    // 2. Verify purchase status: user must have a successful order containing this product
+    // 2. Check for duplicate review
+    const existingReview = await prisma.review.findFirst({
+      where: { productId, userId }
+    });
+
+    if (existingReview) {
+      res.status(400).json({
+        status: 'error',
+        message: 'You have already reviewed this product. Please edit your existing review instead.'
+      });
+      return;
+    }
+
+    // 3. Verify purchase status to set verifiedPurchase flag dynamically
     const successfulOrder = await prisma.order.findFirst({
       where: {
         userId,
@@ -36,41 +50,37 @@ export const createReview = async (req: AuthenticatedRequest, res: Response): Pr
       }
     });
 
-    if (!successfulOrder) {
-      res.status(403).json({
-        status: 'error',
-        message: 'Only customers who have purchased this product can leave a review.'
+    // 4. Create review and images in a transaction
+    const review = await prisma.$transaction(async (tx) => {
+      const createdReview = await tx.review.create({
+        data: {
+          productId,
+          userId,
+          rating,
+          title,
+          reviewText,
+          verifiedPurchase: !!successfulOrder,
+        },
       });
-      return;
-    }
 
-    // 3. Check for duplicate review
-    const existingReview = await prisma.review.findFirst({
-      where: { productId, userId }
-    });
-
-    if (existingReview) {
-      res.status(400).json({
-        status: 'error',
-        message: 'You have already reviewed this product. Please edit your existing review instead.'
-      });
-      return;
-    }
-
-    // 4. Create review
-    const review = await prisma.review.create({
-      data: {
-        productId,
-        userId,
-        rating,
-        reviewText,
-        verifiedPurchase: true
-      },
-      include: {
-        user: {
-          select: { name: true }
+      if (images && images.length > 0) {
+        for (const url of images) {
+          await tx.reviewImage.create({
+            data: {
+              reviewId: createdReview.id,
+              imageUrl: url
+            }
+          });
         }
       }
+
+      return await tx.review.findUnique({
+        where: { id: createdReview.id },
+        include: {
+          user: { select: { name: true } },
+          images: true
+        }
+      });
     });
 
     res.status(201).json({
@@ -86,7 +96,7 @@ export const createReview = async (req: AuthenticatedRequest, res: Response): Pr
 export const updateReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { rating, reviewText } = req.body;
+    const { rating, title, reviewText, images } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -110,18 +120,54 @@ export const updateReview = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    // Update review
-    const updatedReview = await prisma.review.update({
-      where: { id },
-      data: {
-        rating: rating !== undefined ? rating : undefined,
-        reviewText: reviewText !== undefined ? reviewText : undefined,
-      },
-      include: {
-        user: {
-          select: { name: true }
+    const updatedReview = await prisma.$transaction(async (tx) => {
+      // 1. Sync review images if provided
+      if (images !== undefined) {
+        const existingImages = await tx.reviewImage.findMany({
+          where: { reviewId: id }
+        });
+
+        const newUrls = new Set(images);
+        const imagesToDelete = existingImages.filter(ext => !newUrls.has(ext.imageUrl));
+
+        for (const img of imagesToDelete) {
+          await tx.reviewImage.delete({ where: { id: img.id } });
+          const publicId = extractPublicId(img.imageUrl);
+          if (publicId) {
+            try {
+              await deleteImageFromCloudinary(publicId);
+            } catch (err) {
+              console.error(`Failed to delete Cloudinary asset for review image: ${publicId}`, err);
+            }
+          }
+        }
+
+        const existingUrls = new Set(existingImages.map(img => img.imageUrl));
+        for (const url of images) {
+          if (!existingUrls.has(url)) {
+            await tx.reviewImage.create({
+              data: {
+                reviewId: id,
+                imageUrl: url
+              }
+            });
+          }
         }
       }
+
+      // 2. Update review text, rating, title
+      return await tx.review.update({
+        where: { id },
+        data: {
+          rating: rating !== undefined ? rating : undefined,
+          title: title !== undefined ? title : undefined,
+          reviewText: reviewText !== undefined ? reviewText : undefined,
+        },
+        include: {
+          user: { select: { name: true } },
+          images: true
+        }
+      });
     });
 
     res.status(200).json({
@@ -145,9 +191,10 @@ export const deleteReview = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    // Find review
+    // Find review along with its images
     const review = await prisma.review.findUnique({
-      where: { id }
+      where: { id },
+      include: { images: true }
     });
 
     if (!review) {
@@ -161,9 +208,22 @@ export const deleteReview = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
+    // Delete review (cascades database delete to review_images)
     await prisma.review.delete({
       where: { id }
     });
+
+    // Delete assets from Cloudinary
+    for (const img of review.images) {
+      const publicId = extractPublicId(img.imageUrl);
+      if (publicId) {
+        try {
+          await deleteImageFromCloudinary(publicId);
+        } catch (err) {
+          console.error(`Failed to delete Cloudinary asset for review image: ${publicId}`, err);
+        }
+      }
+    }
 
     res.status(200).json({
       status: 'success',
@@ -207,7 +267,8 @@ export const getProductReviews = async (req: AuthenticatedRequest, res: Response
         include: {
           user: {
             select: { name: true }
-          }
+          },
+          images: true
         }
       }),
       prisma.review.count({ where })
@@ -321,7 +382,8 @@ export const checkPurchaseStatus = async (req: AuthenticatedRequest, res: Respon
 
     // 2. Fetch existing review if any
     const existingReview = await prisma.review.findFirst({
-      where: { productId, userId }
+      where: { productId, userId },
+      include: { images: true }
     });
 
     res.status(200).json({

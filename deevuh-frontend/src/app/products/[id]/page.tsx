@@ -110,6 +110,14 @@ export default function ProductDetailPage({ params }: PageProps) {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [reviewTitle, setReviewTitle] = useState<string>("");
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  
+  // Lightbox state
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxImagesList, setLightboxImagesList] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
 
   // Helper to render stars beautifully (filled / outline)
   const renderStars = (rating: number) => {
@@ -203,6 +211,80 @@ export default function ProductDetailPage({ params }: PageProps) {
     }
   };
 
+  // Lightbox navigation
+  const openLightbox = (images: string[], index: number) => {
+    setLightboxImagesList(images);
+    setLightboxIndex(index);
+    setLightboxImage(images[index]);
+  };
+
+  const closeLightbox = () => {
+    setLightboxImage(null);
+    setLightboxImagesList([]);
+  };
+
+  const nextLightboxImage = () => {
+    if (lightboxImagesList.length === 0) return;
+    const nextIdx = (lightboxIndex + 1) % lightboxImagesList.length;
+    setLightboxIndex(nextIdx);
+    setLightboxImage(lightboxImagesList[nextIdx]);
+  };
+
+  const prevLightboxImage = () => {
+    if (lightboxImagesList.length === 0) return;
+    const prevIdx = (lightboxIndex - 1 + lightboxImagesList.length) % lightboxImagesList.length;
+    setLightboxIndex(prevIdx);
+    setLightboxImage(lightboxImagesList[prevIdx]);
+  };
+
+  // Image upload handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (uploadedImages.length + files.length > 5) {
+      setReviewError("You can upload a maximum of 5 images per review.");
+      return;
+    }
+
+    setUploadingImage(true);
+    setReviewError(null);
+
+    try {
+      const newUrls = [...uploadedImages];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error("File size must not exceed 5MB.");
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await api.post('/uploads/review-image', formData);
+        if (res?.status === 'success' && res.data?.url) {
+          newUrls.push(res.data.url);
+        } else {
+          throw new Error("Failed to upload image.");
+        }
+      }
+      setUploadedImages(newUrls);
+    } catch (err: any) {
+      setReviewError(err.message || "Failed to upload image.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeUploadedImage = (indexToRemove: number) => {
+    setUploadedImages(uploadedImages.filter((_, idx) => idx !== indexToRemove));
+  };
+
   // Submit Review (Create or Update)
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,20 +307,26 @@ export default function ProductDetailPage({ params }: PageProps) {
       if (editingReviewId) {
         res = await api.put(`/reviews/${editingReviewId}`, {
           rating: selectedRating,
-          reviewText: newReviewText
+          title: reviewTitle || null,
+          reviewText: newReviewText,
+          images: uploadedImages,
         });
       } else {
         res = await api.post('/reviews', {
           productId: dbProduct.id,
           rating: selectedRating,
-          reviewText: newReviewText
+          title: reviewTitle || null,
+          reviewText: newReviewText,
+          images: uploadedImages,
         });
       }
 
       if (res?.status === 'success') {
         setReviewSuccess(editingReviewId ? "Review updated successfully!" : "Review submitted successfully!");
         setSelectedRating(0);
+        setReviewTitle("");
         setNewReviewText("");
+        setUploadedImages([]);
         setEditingReviewId(null);
         
         // Refresh reviews and summary
@@ -257,7 +345,9 @@ export default function ProductDetailPage({ params }: PageProps) {
   const handleStartEdit = (review: any) => {
     setEditingReviewId(review.id);
     setSelectedRating(review.rating);
+    setReviewTitle(review.title || "");
     setNewReviewText(review.reviewText);
+    setUploadedImages(review.images?.map((img: any) => img.imageUrl) || []);
     setReviewError(null);
     setReviewSuccess(null);
     
@@ -282,11 +372,13 @@ export default function ProductDetailPage({ params }: PageProps) {
         if (editingReviewId === reviewId) {
           setEditingReviewId(null);
           setSelectedRating(0);
+          setReviewTitle("");
           setNewReviewText("");
+          setUploadedImages([]);
         }
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Failed to delete review.");
+      alert(err.message || "Failed to delete review.");
     }
   };
 
@@ -1108,7 +1200,7 @@ export default function ProductDetailPage({ params }: PageProps) {
               {/* RIGHT COLUMN: REVIEW LIST & SUBMISSION FORM */}
               <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
                 {/* WRITE REVIEW FORM SECTION */}
-                {purchaseStatus.hasPurchased && !purchaseStatus.hasReviewed && !editingReviewId && (
+                {currentUser && !purchaseStatus.hasReviewed && !editingReviewId && (
                   <div
                     id="review-form-container"
                     style={{
@@ -1163,6 +1255,29 @@ export default function ProductDetailPage({ params }: PageProps) {
                       </div>
 
                       <div>
+                        <label htmlFor="reviewTitle" style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                          Review Title (Optional)
+                        </label>
+                        <input
+                          id="reviewTitle"
+                          type="text"
+                          value={reviewTitle}
+                          onChange={(e) => setReviewTitle(e.target.value)}
+                          placeholder="e.g. Beautiful fabric, perfect fit!"
+                          maxLength={255}
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            border: "1px solid var(--color-outline-variant)",
+                            backgroundColor: "var(--color-surface)",
+                            color: "var(--color-charcoal)",
+                            fontSize: "14px",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                      </div>
+
+                      <div>
                         <label htmlFor="reviewText" style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
                           Your Feedback *
                         </label>
@@ -1193,6 +1308,78 @@ export default function ProductDetailPage({ params }: PageProps) {
                         </div>
                       </div>
 
+                      <div>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                          Add Photos (Max 5)
+                        </label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+                          {uploadedImages.map((imgUrl, idx) => (
+                            <div key={idx} style={{ position: "relative", width: "80px", height: "80px", border: "1px solid var(--color-outline-variant)" }}>
+                              <img src={imgUrl} alt={`Review photo ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              <button
+                                type="button"
+                                onClick={() => removeUploadedImage(idx)}
+                                style={{
+                                  position: "absolute",
+                                  top: "-6px",
+                                  right: "-6px",
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  backgroundColor: "var(--color-ruby)",
+                                  color: "var(--color-cream)",
+                                  border: "none",
+                                  fontSize: "12px",
+                                  fontWeight: "bold",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          
+                          {uploadedImages.length < 5 && (
+                            <label
+                              htmlFor="review-image-input"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                border: "1px dashed var(--color-outline-variant)",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                backgroundColor: "var(--color-surface)",
+                                color: "var(--color-on-surface-variant)",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.02)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface)")}
+                            >
+                              <span style={{ fontSize: "20px", fontWeight: "300" }}>+</span>
+                              <span style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>
+                                {uploadingImage ? "Loading..." : "Upload"}
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                        <input
+                          id="review-image-input"
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          style={{ display: "none" }}
+                        />
+                      </div>
+
                       {reviewError && (
                         <div style={{ color: "var(--color-ruby)", fontSize: "13px", fontWeight: 600 }}>
                           {reviewError}
@@ -1207,7 +1394,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
                       <button
                         type="submit"
-                        disabled={submittingReview}
+                        disabled={submittingReview || uploadingImage}
                         style={{
                           alignSelf: "flex-start",
                           padding: "14px 28px",
@@ -1256,7 +1443,9 @@ export default function ProductDetailPage({ params }: PageProps) {
                         onClick={() => {
                           setEditingReviewId(null);
                           setSelectedRating(0);
+                          setReviewTitle("");
                           setNewReviewText("");
+                          setUploadedImages([]);
                           setReviewError(null);
                         }}
                         style={{
@@ -1305,6 +1494,29 @@ export default function ProductDetailPage({ params }: PageProps) {
                       </div>
 
                       <div>
+                        <label htmlFor="editReviewTitle" style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                          Review Title (Optional)
+                        </label>
+                        <input
+                          id="editReviewTitle"
+                          type="text"
+                          value={reviewTitle}
+                          onChange={(e) => setReviewTitle(e.target.value)}
+                          placeholder="e.g. Beautiful fabric, perfect fit!"
+                          maxLength={255}
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            border: "1px solid var(--color-outline-variant)",
+                            backgroundColor: "var(--color-surface)",
+                            color: "var(--color-charcoal)",
+                            fontSize: "14px",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                      </div>
+
+                      <div>
                         <label htmlFor="editReviewText" style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
                           Your Feedback *
                         </label>
@@ -1335,6 +1547,78 @@ export default function ProductDetailPage({ params }: PageProps) {
                         </div>
                       </div>
 
+                      <div>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                          Add Photos (Max 5)
+                        </label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+                          {uploadedImages.map((imgUrl, idx) => (
+                            <div key={idx} style={{ position: "relative", width: "80px", height: "80px", border: "1px solid var(--color-outline-variant)" }}>
+                              <img src={imgUrl} alt={`Review photo ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              <button
+                                type="button"
+                                onClick={() => removeUploadedImage(idx)}
+                                style={{
+                                  position: "absolute",
+                                  top: "-6px",
+                                  right: "-6px",
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  backgroundColor: "var(--color-ruby)",
+                                  color: "var(--color-cream)",
+                                  border: "none",
+                                  fontSize: "12px",
+                                  fontWeight: "bold",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          
+                          {uploadedImages.length < 5 && (
+                            <label
+                              htmlFor="edit-review-image-input"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                border: "1px dashed var(--color-outline-variant)",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                backgroundColor: "var(--color-surface)",
+                                color: "var(--color-on-surface-variant)",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.02)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface)")}
+                            >
+                              <span style={{ fontSize: "20px", fontWeight: "300" }}>+</span>
+                              <span style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>
+                                {uploadingImage ? "Loading..." : "Upload"}
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                        <input
+                          id="edit-review-image-input"
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          style={{ display: "none" }}
+                        />
+                      </div>
+
                       {reviewError && (
                         <div style={{ color: "var(--color-ruby)", fontSize: "13px", fontWeight: 600 }}>
                           {reviewError}
@@ -1343,7 +1627,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
                       <button
                         type="submit"
-                        disabled={submittingReview}
+                        disabled={submittingReview || uploadingImage}
                         style={{
                           alignSelf: "flex-start",
                           padding: "14px 28px",
@@ -1570,6 +1854,21 @@ export default function ProductDetailPage({ params }: PageProps) {
                               </span>
                             </div>
 
+                            {/* Review Title */}
+                            {rev.title && (
+                              <h4
+                                style={{
+                                  margin: "0 0 4px 0",
+                                  fontSize: "15px",
+                                  fontWeight: 600,
+                                  color: "var(--color-charcoal)",
+                                  textAlign: "left",
+                                }}
+                              >
+                                {rev.title}
+                              </h4>
+                            )}
+
                             {/* Review Content */}
                             <p
                               style={{
@@ -1583,6 +1882,44 @@ export default function ProductDetailPage({ params }: PageProps) {
                             >
                               {rev.reviewText}
                             </p>
+
+                            {/* Review Images */}
+                            {rev.images && rev.images.length > 0 && (
+                              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "12px" }}>
+                                {rev.images.map((img: any, idx: number) => {
+                                  const allUrls = rev.images.map((i: any) => i.imageUrl);
+                                  return (
+                                    <div
+                                      key={img.id || idx}
+                                      onClick={() => openLightbox(allUrls, idx)}
+                                      style={{
+                                        width: "60px",
+                                        height: "60px",
+                                        border: "1px solid var(--color-outline-variant)",
+                                        cursor: "pointer",
+                                        overflow: "hidden",
+                                        transition: "transform 0.2s, border-color 0.2s",
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = "scale(1.05)";
+                                        e.currentTarget.style.borderColor = "var(--color-ruby)";
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = "scale(1)";
+                                        e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                                      }}
+                                    >
+                                      <img
+                                        src={img.imageUrl}
+                                        alt={`Review photo ${idx + 1}`}
+                                        loading="lazy"
+                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
 
                             {/* Admin hidden notification */}
                             {rev.isHidden && (
@@ -2315,6 +2652,150 @@ export default function ProductDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          onClick={closeLightbox}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={closeLightbox}
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-cream)',
+              fontSize: '32px',
+              cursor: 'pointer',
+              zIndex: 100000,
+            }}
+          >
+            ×
+          </button>
+
+          {/* Image container */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90%',
+              maxHeight: '80%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Left arrow */}
+            {lightboxImagesList.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevLightboxImage();
+                }}
+                style={{
+                  position: 'absolute',
+                  left: '-60px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ‹
+              </button>
+            )}
+
+            {/* Main image */}
+            <img
+              src={lightboxImage}
+              alt="Review full photo"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              }}
+            />
+
+            {/* Right arrow */}
+            {lightboxImagesList.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextLightboxImage();
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '-60px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ›
+              </button>
+            )}
+          </div>
+          
+          {/* Indicator dots */}
+          {lightboxImagesList.length > 1 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '40px',
+                display: 'flex',
+                gap: '8px',
+                zIndex: 100000,
+              }}
+            >
+              {lightboxImagesList.map((_, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: idx === lightboxIndex ? 'var(--color-ruby)' : 'rgba(255,255,255,0.4)',
+                    transition: 'background-color 0.2s',
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

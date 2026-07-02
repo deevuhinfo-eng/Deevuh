@@ -9,13 +9,25 @@ import {
   moderateReview
 } from './reviews.controller.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
-import { customerGuard } from '../../middleware/customerGuard.js';
 import { adminGuard } from '../../middleware/adminGuard.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { createReviewSchema, updateReviewSchema } from './reviews.schemas.js';
 import { verifyAccessToken } from '../auth/token.service.js';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// Rate limiter for reviews submission/editing (5 requests per minute)
+const reviewLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: {
+    status: 'error',
+    message: 'Too many review actions. Please wait a minute and try again.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Optional authentication middleware to populate req.user if present
 const optionalAuth = async (req: AuthenticatedRequest, res: any, next: any) => {
@@ -34,12 +46,12 @@ const optionalAuth = async (req: AuthenticatedRequest, res: any, next: any) => {
   next();
 };
 
-router.post('/', authMiddleware, customerGuard, validateRequest(createReviewSchema), createReview);
-router.put('/:id', authMiddleware, customerGuard, validateRequest(updateReviewSchema), updateReview);
+router.post('/', authMiddleware, reviewLimiter, validateRequest(createReviewSchema), createReview);
+router.put('/:id', authMiddleware, reviewLimiter, validateRequest(updateReviewSchema), updateReview);
 router.delete('/:id', authMiddleware, deleteReview);
 router.get('/product/:productId', optionalAuth, getProductReviews);
 router.get('/product/:productId/summary', getProductRatingSummary);
-router.get('/check-purchase/:productId', authMiddleware, customerGuard, checkPurchaseStatus);
+router.get('/check-purchase/:productId', authMiddleware, checkPurchaseStatus);
 router.patch('/:id/moderate', adminGuard, moderateReview);
 
 export default router;

@@ -18,6 +18,7 @@ const mapBackendProduct = (prod: any): Product => ({
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [rawProducts, setRawProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -28,19 +29,125 @@ export default function AdminProductsPage() {
   const [category, setCategory] = useState("Coordset");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [productImages, setProductImages] = useState<{ id?: string; imageUrl: string; order: number }[]>([]);
   const [sizes, setSizes] = useState<string[]>(["S", "M", "L"]);
   const [details, setDetails] = useState<string[]>([]);
   
   const [detailInput, setDetailInput] = useState("");
   const [imageInput, setImageInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
+  const [adminZoomImage, setAdminZoomImage] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const [error, setError] = useState("");
+
+  // Drag and Drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null) return;
+    const items = [...productImages];
+    const draggedItem = items[draggedIndex];
+    items.splice(draggedIndex, 1);
+    items.splice(index, 0, draggedItem);
+    const updated = items.map((img, idx) => ({ ...img, order: idx }));
+    setProductImages(updated);
+    setDraggedIndex(null);
+  };
+
+  // Image helpers
+  const handleRemoveProductImage = (index: number) => {
+    const updated = productImages
+      .filter((_, i) => i !== index)
+      .map((img, idx) => ({ ...img, order: idx }));
+    setProductImages(updated);
+  };
+
+  const handleSetCoverProductImage = (index: number) => {
+    if (index === 0) return;
+    const items = [...productImages];
+    const target = items[index];
+    items.splice(index, 1);
+    items.unshift(target);
+    const updated = items.map((img, idx) => ({ ...img, order: idx }));
+    setProductImages(updated);
+  };
+
+  const openAdminZoom = (url: string) => {
+    setAdminZoomImage(url);
+  };
+
+  const closeAdminZoom = () => {
+    setAdminZoomImage(null);
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setUploadingProductImage(true);
+    try {
+      const newImages = [...productImages];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await api.post('/uploads/image', formData);
+        if (res?.status === 'success' && res.data?.url) {
+          newImages.push({
+            imageUrl: res.data.url,
+            order: newImages.length
+          });
+        }
+      }
+      setProductImages(newImages);
+    } catch (err: any) {
+      alert(err.message || "Failed to upload image.");
+    } finally {
+      setUploadingProductImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleReplaceProductImage = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingProductImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await api.post('/uploads/image', formData);
+      if (res?.status === 'success' && res.data?.url) {
+        const items = [...productImages];
+        items[index] = {
+          ...items[index],
+          imageUrl: res.data.url,
+        };
+        setProductImages(items);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to replace image.");
+    } finally {
+      setUploadingProductImage(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     api.get("/products")
       .then((res: any) => {
         const productList = res.data || [];
+        setRawProducts(productList);
         setProducts(productList.map(mapBackendProduct));
       })
       .catch((err) => {
@@ -86,6 +193,7 @@ export default function AdminProductsPage() {
     setCategory("Coordset");
     setDescription("");
     setImages([]);
+    setProductImages([]);
     setSizes(["S", "M", "L"]);
     setDetails([]);
     setDetailInput("");
@@ -108,11 +216,13 @@ export default function AdminProductsPage() {
           description,
           basePrice: basePriceNum,
           category,
+          images: productImages,
         };
         await api.put(`/products/${editId}`, updatePayload)
           .then((res) => {
             const mapped = mapBackendProduct(res.data);
             setProducts(products.map(p => p.id === editId ? mapped : p));
+            setRawProducts(rawProducts.map(p => p.id === editId ? res.data : p));
           })
           .catch((err) => {
             console.error("Backend update failed, updating locally.", err);
@@ -122,7 +232,7 @@ export default function AdminProductsPage() {
               price: basePriceNum,
               category,
               description,
-              images: images.length > 0 ? images : ["/products/Combo/DSC_0034.jpg"],
+              images: productImages.map(img => img.imageUrl),
               sizes,
               details: details.length > 0 ? details : ["Premium handcrafted fabric", "Made in India"],
             };
@@ -140,13 +250,13 @@ export default function AdminProductsPage() {
             price: basePriceNum,
             stockQty: 100
           })),
-          images: (images.length > 0 ? images : ["https://res.cloudinary.com/dnj50tf7s/image/upload/v1780114405/deevuh/products/baby%20blue%20coordset/1%20picture.jpg.jpg"])
-            .map(url => ({ imageUrl: url }))
+          images: productImages.map((img, idx) => ({ imageUrl: img.imageUrl, order: idx }))
         };
 
         await api.post("/products", createPayload)
           .then((res) => {
             setProducts([mapBackendProduct(res.data), ...products]);
+            setRawProducts([res.data, ...rawProducts]);
           })
           .catch((err) => {
             console.error("Backend create failed, creating locally.", err);
@@ -157,7 +267,7 @@ export default function AdminProductsPage() {
               price: basePriceNum,
               category,
               description,
-              images: images.length > 0 ? images : ["/products/Combo/DSC_0034.jpg"],
+              images: productImages.map(img => img.imageUrl),
               sizes,
               details: details.length > 0 ? details : ["Premium handcrafted fabric", "Made in India"],
             };
@@ -177,20 +287,38 @@ export default function AdminProductsPage() {
     setPrice(String(prod.price));
     setCategory(prod.category);
     setDescription(prod.description);
-    setImages(prod.images);
     setSizes(prod.sizes);
     setDetails(prod.details);
     setEditId(prod.id);
     setShowForm(true);
+
+    const rawProd = rawProducts.find(p => p.id === prod.id);
+    if (rawProd && rawProd.images) {
+      setProductImages(rawProd.images.map((img: any) => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        order: img.order || 0
+      })));
+    } else {
+      setProductImages(prod.images.map((url, idx) => ({
+        imageUrl: url,
+        order: idx
+      })));
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to withdraw this capsule piece?")) return;
     try {
       await api.delete(`/products/${id}`)
+        .then(() => {
+          setProducts(products.filter((p) => p.id !== id));
+          setRawProducts(rawProducts.filter((p) => p.id !== id));
+        })
         .catch(() => {
           // Simulated local delete
           setProducts(products.filter((p) => p.id !== id));
+          setRawProducts(rawProducts.filter((p) => p.id !== id));
         });
     } catch (err: any) {
       alert(err.message);
@@ -321,30 +449,163 @@ export default function AdminProductsPage() {
               })}
             </div>
           </div>
-
           {/* IMAGES PANEL */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "24px" }}>
-            <div className="stack-sm">
-              <label className="label-md">Garment Photography (Image URLs)</label>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <input
-                  className="input"
-                  type="text"
-                  value={imageInput}
-                  onChange={(e) => setImageInput(e.target.value)}
-                  placeholder="e.g. /products/Baby Blue Coordset/1 Picture.jpg"
-                />
-                <button type="button" className="btn btn-secondary" onClick={handleAddImage}>Add</button>
+            <div className="stack-sm" style={{ gridColumn: "span 2" }}>
+              <label className="label-md" style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-charcoal)" }}>
+                Garment Photography
+              </label>
+              
+              {/* Image list container */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
+                {productImages.length === 0 ? (
+                  <div style={{ border: "1px dashed var(--color-outline-variant)", padding: "20px", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+                    No photos uploaded yet. Select files below to add them to this capsule piece.
+                  </div>
+                ) : (
+                  productImages.map((img, idx) => (
+                    <div
+                      key={img.id || idx}
+                      draggable="true"
+                      onDragStart={() => handleDragStart(idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDrop={() => handleDrop(idx)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "16px",
+                        padding: "12px",
+                        border: "1px solid var(--color-outline-variant)",
+                        backgroundColor: "var(--color-surface)",
+                        cursor: "grab",
+                        position: "relative",
+                        transition: "box-shadow 0.2s, border-color 0.2s",
+                      }}
+                    >
+                      {/* Drag Handle Icon */}
+                      <div style={{ fontSize: "20px", color: "var(--color-on-surface-variant)", cursor: "grab", padding: "0 4px" }}>
+                        ☰
+                      </div>
+
+                      {/* Thumbnail Preview with Zoom trigger */}
+                      <div
+                        onClick={() => openAdminZoom(img.imageUrl)}
+                        style={{
+                          width: "60px",
+                          height: "80px",
+                          border: "1px solid var(--color-outline-variant)",
+                          overflow: "hidden",
+                          cursor: "zoom-in",
+                          backgroundColor: "var(--color-cream)",
+                        }}
+                      >
+                        <img src={img.imageUrl} alt={`Preview ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+
+                      {/* Info & Cover Badge */}
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-on-surface-variant)", textAlign: "left" }}>
+                          IMAGE #{idx + 1}
+                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {idx === 0 ? (
+                            <span style={{ fontSize: "9px", fontWeight: 700, backgroundColor: "var(--color-ruby)", color: "var(--color-cream)", padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                              ★ Main Cover
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCoverProductImage(idx)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "var(--color-charcoal)",
+                                fontSize: "11px",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                            >
+                              Make Cover
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                        {/* Replace image uploader */}
+                        <label
+                          htmlFor={`replace-file-${idx}`}
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: "var(--color-charcoal)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Replace
+                        </label>
+                        <input
+                          id={`replace-file-${idx}`}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleReplaceProductImage(e, idx)}
+                          style={{ display: "none" }}
+                        />
+
+                        {/* Delete image */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProductImage(idx)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--color-ruby)",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            fontSize: "11px",
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
-                {images.map((img, i) => (
-                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "var(--color-cream)", padding: "4px 10px", fontSize: "12px", border: "1px solid var(--color-outline-variant)" }}>
-                    {img.length > 20 ? img.slice(0, 18) + "..." : img}
-                    <button type="button" onClick={() => handleRemoveImage(i)} style={{ background: "none", border: "none", color: "var(--color-ruby)", cursor: "pointer", fontWeight: "bold" }}>×</button>
-                  </span>
-                ))}
+
+              {/* Upload image selector */}
+              <div style={{ marginTop: "16px", textAlign: "left" }}>
+                <label
+                  htmlFor="admin-upload-image"
+                  className="btn btn-secondary"
+                  style={{
+                    display: "inline-block",
+                    padding: "10px 20px",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  {uploadingProductImage ? "Uploading files..." : "Upload New Images"}
+                </label>
+                <input
+                  id="admin-upload-image"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleProductImageUpload}
+                  disabled={uploadingProductImage}
+                  style={{ display: "none" }}
+                />
               </div>
             </div>
+          </div>
 
             <div className="stack-sm">
               <label className="label-md">Tailor Highlights / Fabric Details</label>
@@ -367,7 +628,6 @@ export default function AdminProductsPage() {
                 ))}
               </div>
             </div>
-          </div>
 
           <div style={{ display: "flex", gap: "12px" }}>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -451,6 +711,28 @@ export default function AdminProductsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Admin Zoom Lightbox */}
+      {adminZoomImage && (
+        <div
+          onClick={closeAdminZoom}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+          }}
+        >
+          <img src={adminZoomImage} alt="Product Zoomed" style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain" }} />
+        </div>
+      )}
     </div>
   );
 }
