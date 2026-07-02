@@ -36,7 +36,7 @@ router.get(
 
       const cart = await prisma.cart.findFirst({
         where: { userId, status: 'active' },
-        include: { items: { include: { variant: true } } },
+        include: { items: { include: { variant: { include: { product: true } } } } },
       });
 
       if (!cart || cart.items.length === 0) {
@@ -47,7 +47,7 @@ router.get(
         return;
       }
 
-      const cartTotal = cart.items.reduce((sum, item) => sum + Number(item.variant.price) * item.quantity, 0);
+      const cartTotal = cart.items.reduce((sum, item) => sum + Number(item.variant.product.basePrice) * item.quantity, 0);
       const result = await checkCODEligibility(userId, cartTotal, prisma);
       res.status(200).json({ status: 'success', data: result });
     } catch (error: any) {
@@ -113,7 +113,7 @@ router.post(
       // Calculate subtotal
       let totalAmount = 0;
       for (const item of cart.items) {
-        totalAmount += Number(item.variant.price) * item.quantity;
+        totalAmount += Number(item.variant.product.basePrice) * item.quantity;
       }
 
       // Verify COD eligibility if user requested COD
@@ -198,7 +198,7 @@ router.post(
               create: cart.items.map((item) => ({
                 productVariantId: item.productVariantId,
                 quantity: item.quantity,
-                unitPrice: item.variant.price,
+                unitPrice: item.variant.product.basePrice,
               })),
             },
           },

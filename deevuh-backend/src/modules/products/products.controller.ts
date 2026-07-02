@@ -114,11 +114,31 @@ export const createProduct = async (req: AuthenticatedRequest, res: Response): P
 
 export const updateProduct = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const product = await prisma.product.update({
-      where: { id: req.params.id as string },
-      data: req.body,
-      include: { variants: true, images: true },
+    const productId = req.params.id as string;
+    const { basePrice, ...otherData } = req.body;
+
+    const product = await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          basePrice,
+          ...otherData
+        },
+      });
+
+      if (basePrice !== undefined) {
+        await tx.productVariant.updateMany({
+          where: { productId },
+          data: { price: basePrice },
+        });
+      }
+
+      return await tx.product.findUnique({
+        where: { id: productId },
+        include: { variants: true, images: true },
+      });
     });
+
     res.status(200).json({ status: 'success', data: product });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
