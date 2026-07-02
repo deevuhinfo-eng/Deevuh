@@ -1,11 +1,12 @@
 import { Router, Response } from 'express';
 import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
+import { customerGuard } from '../../middleware/customerGuard.js';
 
 const router = Router();
 
 // GET /api/wishlist - Retrieve user's wishlist
-router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -39,12 +40,13 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
 
     res.status(200).json({ status: 'success', data: formattedProducts });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Wishlist Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
 // POST /api/wishlist/:productId - Add product to wishlist
-router.post('/:productId', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/:productId', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const productId = req.params.productId as string;
@@ -72,12 +74,13 @@ router.post('/:productId', authMiddleware, async (req: AuthenticatedRequest, res
 
     res.status(201).json({ status: 'success', message: 'Added to wishlist.', data: item });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Add to Wishlist Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
 // DELETE /api/wishlist/:productId - Remove product from wishlist
-router.delete('/:productId', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/:productId', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const productId = req.params.productId as string;
@@ -93,7 +96,8 @@ router.delete('/:productId', authMiddleware, async (req: AuthenticatedRequest, r
 
     res.status(200).json({ status: 'success', message: 'Removed from wishlist.' });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Remove from Wishlist Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 

@@ -78,7 +78,8 @@ export const createReview = async (req: AuthenticatedRequest, res: Response): Pr
       data: review
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Create Review Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -128,7 +129,8 @@ export const updateReview = async (req: AuthenticatedRequest, res: Response): Pr
       data: updatedReview
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Update Review Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -168,7 +170,8 @@ export const deleteReview = async (req: AuthenticatedRequest, res: Response): Pr
       message: 'Review deleted successfully.'
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Delete Review Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -221,7 +224,8 @@ export const getProductReviews = async (req: AuthenticatedRequest, res: Response
       }
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Product Reviews Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -278,7 +282,8 @@ export const getProductRatingSummary = async (req: AuthenticatedRequest, res: Re
       }
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Rating Summary Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -328,7 +333,8 @@ export const checkPurchaseStatus = async (req: AuthenticatedRequest, res: Respon
       }
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Check Purchase Status Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };
 
@@ -352,6 +358,7 @@ export const moderateReview = async (req: AuthenticatedRequest, res: Response): 
       data: review
     });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Moderate Review Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 };

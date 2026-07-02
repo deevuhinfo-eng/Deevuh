@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
+import { customerGuard } from '../../middleware/customerGuard.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { calculateGST, generatePayUHash, processPayUWebhook } from './payments.service.js';
 import { checkCODEligibility } from './cod-eligibility.service.js';
@@ -24,6 +25,7 @@ const checkoutSchema = z.object({
 router.get(
   '/cod-eligibility',
   authMiddleware,
+  customerGuard,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
@@ -49,7 +51,8 @@ router.get(
       const result = await checkCODEligibility(userId, cartTotal, prisma);
       res.status(200).json({ status: 'success', data: result });
     } catch (error: any) {
-      res.status(500).json({ status: 'error', message: error.message });
+      console.error('[COD Eligibility Error]', error);
+      res.status(500).json({ status: 'error', message: 'Something went wrong.' });
     }
   }
 );
@@ -70,6 +73,7 @@ router.get(
 router.post(
   '/create-order',
   authMiddleware,
+  customerGuard,
   validateRequest(checkoutSchema),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -350,14 +354,18 @@ router.post(
         },
       });
     } catch (error: any) {
+      console.error('[Create Order Error]', error);
       const badRequestMessages = [
         'Coupon is invalid or expired',
         'Coupon usage limit reached',
         'Minimum purchase of',
         'Insufficient stock for'
       ];
-      const isBadRequest = badRequestMessages.some(msg => error.message.includes(msg));
-      res.status(isBadRequest ? 400 : 500).json({ status: 'error', message: error.message });
+      const isBadRequest = badRequestMessages.some(msg => error.message && error.message.includes(msg));
+      res.status(isBadRequest ? 400 : 500).json({
+        status: 'error',
+        message: isBadRequest ? error.message : 'Something went wrong.'
+      });
     }
   }
 );

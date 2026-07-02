@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import { adminGuard, AuthenticatedRequest as AdminRequest } from '../../middleware/adminGuard.js';
+import { customerGuard } from '../../middleware/customerGuard.js';
 import { z } from 'zod';
 import { validateRequest } from '../../middleware/validateRequest.js';
 
@@ -27,7 +28,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   RETURNED: [],
 };
 
-router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orders = await prisma.order.findMany({
       where: { userId: req.user?.id },
@@ -43,7 +44,8 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
     });
     res.status(200).json({ status: 'success', data: orders });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Orders Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
@@ -69,7 +71,8 @@ router.get('/:id', authMiddleware, async (req: AuthenticatedRequest, res: Respon
 
     res.status(200).json({ status: 'success', data: order });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Order Details Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
@@ -140,7 +143,8 @@ router.put('/status', adminGuard, validateRequest(orderStatusUpdateSchema), asyn
 
     res.status(200).json({ status: 'success', data: updated });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Update Order Status Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 

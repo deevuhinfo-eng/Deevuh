@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import prisma from './config/database.js';
+import { Prisma } from '@prisma/client';
 
 import authRoutes from './modules/auth/auth.routes.js';
 import productRoutes from './modules/products/products.routes.js';
@@ -103,11 +104,28 @@ app.use('/api/wishlist', wishlistRoutes);
 // Global error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[Global Error]', err);
-  res.status(err.status || 500).json({
+
+  let statusCode = err.status || 500;
+  let clientMessage = err.message;
+
+  const isPrismaError =
+    err instanceof Prisma.PrismaClientKnownRequestError ||
+    err instanceof Prisma.PrismaClientUnknownRequestError ||
+    err instanceof Prisma.PrismaClientRustPanicError ||
+    err instanceof Prisma.PrismaClientInitializationError ||
+    err instanceof Prisma.PrismaClientValidationError ||
+    (err.message && err.message.toLowerCase().includes('prisma'));
+
+  if (isPrismaError) {
+    statusCode = 500;
+    clientMessage = 'Something went wrong.';
+  } else if (process.env.NODE_ENV === 'production') {
+    clientMessage = 'An unexpected error occurred.';
+  }
+
+  res.status(statusCode).json({
     status: 'error',
-    message: process.env.NODE_ENV === 'production'
-      ? 'An unexpected error occurred.'
-      : err.message,
+    message: clientMessage,
   });
 });
 

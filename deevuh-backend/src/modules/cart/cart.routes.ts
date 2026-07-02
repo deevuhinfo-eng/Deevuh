@@ -1,10 +1,11 @@
 import { Router, Response } from 'express';
 import prisma from '../../config/database.js';
 import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddleware.js';
+import { customerGuard } from '../../middleware/customerGuard.js';
 
 const router = Router();
 
-router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     let cart = await prisma.cart.findFirst({
@@ -29,11 +30,12 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
 
     res.status(200).json({ status: 'success', data: cart });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Get Cart Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
-router.post('/add', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/add', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { productVariantId, quantity } = req.body;
@@ -93,11 +95,12 @@ router.post('/add', authMiddleware, async (req: AuthenticatedRequest, res: Respo
 
     res.status(200).json({ status: 'success', data: updatedCart });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Add to Cart Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
-router.put('/update', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.put('/update', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { cartItemId, quantity } = req.body;
     if (!cartItemId) {
@@ -134,11 +137,12 @@ router.put('/update', authMiddleware, async (req: AuthenticatedRequest, res: Res
 
     res.status(200).json({ status: 'success', message: 'Cart updated.' });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Update Cart Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
-router.delete('/remove', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/remove', authMiddleware, customerGuard, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { cartItemId } = req.body;
     if (!cartItemId) {
@@ -159,7 +163,8 @@ router.delete('/remove', authMiddleware, async (req: AuthenticatedRequest, res: 
     await prisma.cartItem.delete({ where: { id: cartItemId } });
     res.status(200).json({ status: 'success', message: 'Item removed from cart.' });
   } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+    console.error('[Remove Cart Item Error]', error);
+    res.status(500).json({ status: 'error', message: 'Something went wrong.' });
   }
 });
 
