@@ -9,12 +9,11 @@ interface ProductImageGalleryProps {
 }
 
 /**
- * ProductImageGallery — Premium swipeable product image gallery
+ * ProductImageGallery — Premium native-like swipeable product image gallery
  * 
- * Mobile: CSS scroll-snap based horizontal swipe with animated dots
- * Desktop: Click-to-select thumbnails with smooth scroll-to animation
- * 
- * Zero external dependencies. GPU-accelerated. Accessible.
+ * Behave exactly like Amazon, Myntra, Nike, Zara, and iOS Photos.
+ * Uses Pointer Events with 1:1 hardware-accelerated transforms, elastic edge resistance,
+ * and high-performance velocity/swipe threshold release physics.
  */
 const ProductImageGallery = memo(function ProductImageGallery({
   images,
@@ -23,82 +22,187 @@ const ProductImageGallery = memo(function ProductImageGallery({
 }: ProductImageGalleryProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set());
 
-  // Detect mobile viewport
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 768px)");
-    setIsMobile(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
+  // Keep track of swipe state using refs to avoid React state re-renders during drags
+  const gestureState = useRef({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    startTime: 0,
+    isSwipeDetermined: false,
+    isHorizontalSwipe: false,
+    trackWidth: 0,
+  });
 
-  // IntersectionObserver to detect which slide is visible
-  useEffect(() => {
-    if (!trackRef.current || images.length === 0) return;
+  // Apply visual transform to the track node
+  const setTrackTransform = useCallback((offsetX: number, withTransition = false) => {
+    if (!trackRef.current) return;
+    const baseOffset = -activeIndex * 100;
+    
+    if (withTransition) {
+      trackRef.current.style.transition = "transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)";
+    } else {
+      trackRef.current.style.transition = "none";
+    }
+    
+    // Using percentage for base layout and direct px for drag offset to handle screen resizes beautifully
+    trackRef.current.style.transform = `translate3d(calc(${baseOffset}% + ${offsetX}px), 0, 0)`;
+  }, [activeIndex]);
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            const idx = Number((entry.target as HTMLElement).dataset.index);
-            if (!isNaN(idx)) {
-              setActiveIndex(idx);
-              onActiveIndexChange?.(idx);
+  // Adjust active slide index
+  const goToSlide = useCallback((index: number) => {
+    const validIndex = Math.max(0, Math.min(index, images.length - 1));
+    setActiveIndex(validIndex);
+    onActiveIndexChange?.(validIndex);
+  }, [images.length, onActiveIndexChange]);
+
+  // Handle slide update when index changes
+  useEffect(() => {
+    setTrackTransform(0, true);
+  }, [activeIndex, setTrackTransform]);
+
+  // Pointer Event listeners
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    let rafId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      // Allow only primary button clicks or touch pointers
+      if (e.button !== 0 && e.pointerType !== "touch") return;
+
+      const state = gestureState.current;
+      state.isDragging = true;
+      state.startX = e.clientX;
+      state.startY = e.clientY;
+      state.currentX = e.clientX;
+      state.currentY = e.clientY;
+      state.startTime = Date.now();
+      state.isSwipeDetermined = false;
+      state.isHorizontalSwipe = false;
+      state.trackWidth = track.clientWidth;
+
+      // Remove transition on drag start
+      track.style.transition = "none";
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const state = gestureState.current;
+      if (!state.isDragging) return;
+
+      state.currentX = e.clientX;
+      state.currentY = e.clientY;
+
+      const deltaX = state.currentX - state.startX;
+      const deltaY = state.currentY - state.startY;
+
+      // Determine swipe direction if not already done
+      if (!state.isSwipeDetermined) {
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        if (absX > 8 || absY > 8) {
+          state.isSwipeDetermined = true;
+          if (absX > absY) {
+            state.isHorizontalSwipe = true;
+            // Prevent pointer capture to avoid page scrolling during swipe
+            if (track.hasPointerCapture(e.pointerId)) {
+              track.releasePointerCapture(e.pointerId);
             }
           }
         }
-      },
-      {
-        root: trackRef.current,
-        threshold: 0.5,
       }
-    );
 
-    slideRefs.current.forEach((slide) => {
-      if (slide) observerRef.current!.observe(slide);
-    });
+      if (state.isHorizontalSwipe) {
+        // Prevent browser scrolling behavior
+        if (e.cancelable) e.preventDefault();
+
+        // Calculate drag offset with iOS-like elastic edge resistance
+        let dragOffset = deltaX;
+        if (activeIndex === 0 && deltaX > 0) {
+          dragOffset = deltaX * 0.35; // Resistance going past first item
+        } else if (activeIndex === images.length - 1 && deltaX < 0) {
+          dragOffset = deltaX * 0.35; // Resistance going past last item
+        }
+
+        // Schedule visual transform update on next frame
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          setTrackTransform(dragOffset, false);
+        });
+      }
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const state = gestureState.current;
+      if (!state.isDragging) return;
+      state.isDragging = false;
+
+      if (rafId) cancelAnimationFrame(rafId);
+
+      if (state.isHorizontalSwipe) {
+        const deltaX = state.currentX - state.startX;
+        const duration = Date.now() - state.startTime;
+        const velocityX = deltaX / (duration || 1); // px per ms
+
+        const threshold = state.trackWidth * 0.25;
+        const speedThreshold = 0.45; // px/ms for quick flicks
+
+        if (deltaX < -threshold || velocityX < -speedThreshold) {
+          // Swipe left -> next slide
+          if (activeIndex < images.length - 1) {
+            goToSlide(activeIndex + 1);
+          } else {
+            setTrackTransform(0, true);
+          }
+        } else if (deltaX > threshold || velocityX > speedThreshold) {
+          // Swipe right -> prev slide
+          if (activeIndex > 0) {
+            goToSlide(activeIndex - 1);
+          } else {
+            setTrackTransform(0, true);
+          }
+        } else {
+          // Reset to current slide
+          setTrackTransform(0, true);
+        }
+      }
+
+      state.isSwipeDetermined = false;
+      state.isHorizontalSwipe = false;
+    };
+
+    // Attach listeners
+    track.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
 
     return () => {
-      observerRef.current?.disconnect();
+      track.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [images, onActiveIndexChange]);
-
-  // Scroll to specific slide (used by thumbnails and keyboard nav)
-  const scrollToSlide = useCallback(
-    (index: number) => {
-      if (!trackRef.current) return;
-      const slideWidth = trackRef.current.clientWidth;
-      trackRef.current.scrollTo({
-        left: index * slideWidth,
-        behavior: "smooth",
-      });
-    },
-    []
-  );
+  }, [activeIndex, images.length, goToSlide, setTrackTransform]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "ArrowLeft" && activeIndex > 0) {
         e.preventDefault();
-        scrollToSlide(activeIndex - 1);
+        goToSlide(activeIndex - 1);
       } else if (e.key === "ArrowRight" && activeIndex < images.length - 1) {
         e.preventDefault();
-        scrollToSlide(activeIndex + 1);
+        goToSlide(activeIndex + 1);
       }
     },
-    [activeIndex, images.length, scrollToSlide]
+    [activeIndex, images.length, goToSlide]
   );
-
-  // Image error handler
-  const handleImageError = useCallback((index: number) => {
-    setBrokenImages((prev) => new Set(prev).add(index));
-  }, []);
 
   // Preload adjacent images
   useEffect(() => {
@@ -111,7 +215,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
     });
   }, [activeIndex, images, brokenImages]);
 
-  // Handle zero images
+  // Handle empty images gracefully
   if (!images || images.length === 0) {
     return (
       <div
@@ -136,80 +240,89 @@ const ProductImageGallery = memo(function ProductImageGallery({
       className="product-gallery"
       style={{ display: "flex", flexDirection: "column", gap: "16px" }}
     >
-      {/* ═══ Swipeable Gallery Track ═══ */}
+      {/* ═══ Gesture-Driven Slider Container ═══ */}
       <div
-        ref={trackRef}
-        className="product-gallery-track"
-        role="region"
-        aria-roledescription="carousel"
-        aria-label={`${title} product images`}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
         style={{
-          display: "flex",
-          overflowX: "auto",
-          scrollSnapType: "x mandatory",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
+          width: "100%",
+          overflow: "hidden",
           position: "relative",
           border: "1px solid var(--color-outline-variant)",
           backgroundColor: "#eaeaea",
         }}
       >
-        {images.map((img, idx) => (
-          <div
-            key={idx}
-            ref={(el) => { slideRefs.current[idx] = el; }}
-            data-index={idx}
-            role="group"
-            aria-roledescription="slide"
-            aria-label={`Image ${idx + 1} of ${images.length}`}
-            className="product-gallery-slide"
-            style={{
-              minWidth: "100%",
-              width: "100%",
-              flexShrink: 0,
-              scrollSnapAlign: "start",
-              aspectRatio: "3/4",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {brokenImages.has(idx) ? (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "#f0eded",
-                  color: "var(--color-on-surface-variant)",
-                  fontSize: "13px",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <span style={{ fontSize: "32px", opacity: 0.4 }}>⚠</span>
-                <span>Image unavailable</span>
-              </div>
-            ) : (
-              <img
-                src={img}
-                alt={`${title} — view ${idx + 1}`}
-                loading={Math.abs(idx - activeIndex) <= 1 ? "eager" : "lazy"}
-                onError={() => handleImageError(idx)}
-                draggable={false}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  userSelect: "none",
-                }}
-              />
-            )}
-          </div>
-        ))}
+        {/* Track */}
+        <div
+          ref={trackRef}
+          className="product-gallery-track"
+          role="region"
+          aria-roledescription="carousel"
+          aria-label={`${title} product images`}
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+          style={{
+            display: "flex",
+            position: "relative",
+            width: "100%",
+            transform: "translate3d(0, 0, 0)",
+            touchAction: "pan-y pinch-zoom",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+          }}
+        >
+          {images.map((img, idx) => (
+            <div
+              key={idx}
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`Image ${idx + 1} of ${images.length}`}
+              className="product-gallery-slide"
+              style={{
+                minWidth: "100%",
+                width: "100%",
+                flexShrink: 0,
+                aspectRatio: "3/4",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {brokenImages.has(idx) ? (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f0eded",
+                    color: "var(--color-on-surface-variant)",
+                    fontSize: "13px",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "32px", opacity: 0.4 }}>⚠</span>
+                  <span>Image unavailable</span>
+                </div>
+              ) : (
+                <img
+                  src={img}
+                  alt={`${title} — view ${idx + 1}`}
+                  loading={Math.abs(idx - activeIndex) <= 1 ? "eager" : "lazy"}
+                  onError={() => setBrokenImages((prev) => new Set(prev).add(idx))}
+                  draggable={false}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                    pointerEvents: "none", // Prevent native drag behaviors on image itself
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ═══ Mobile: Dots Indicator + Counter ═══ */}
@@ -217,14 +330,13 @@ const ProductImageGallery = memo(function ProductImageGallery({
         <div
           className="product-gallery-mobile-indicators"
           style={{
-            display: "none", /* shown via CSS on mobile */
+            display: "none",
             justifyContent: "center",
             alignItems: "center",
             gap: "16px",
             padding: "4px 0",
           }}
         >
-          {/* Dots */}
           <div
             className="product-gallery-dots"
             style={{
@@ -236,7 +348,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
             {images.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => scrollToSlide(idx)}
+                onClick={() => goToSlide(idx)}
                 aria-label={`Go to image ${idx + 1}`}
                 className={`product-gallery-dot${idx === activeIndex ? " active" : ""}`}
                 style={{
@@ -256,7 +368,6 @@ const ProductImageGallery = memo(function ProductImageGallery({
             ))}
           </div>
 
-          {/* Counter */}
           <span
             style={{
               fontSize: "11px",
@@ -287,7 +398,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
           return (
             <button
               key={idx}
-              onClick={() => scrollToSlide(idx)}
+              onClick={() => goToSlide(idx)}
               aria-label={`View image ${idx + 1}`}
               style={{
                 aspectRatio: "3/4",
