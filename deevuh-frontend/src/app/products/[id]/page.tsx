@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PRODUCTS, Product } from "../../../data/products";
 import { useCart } from "@/context/CartContext";
 import api from "@/lib/api";
+import ProductImageGallery from "@/components/ProductImageGallery";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -77,7 +78,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     } as Product;
   })();
 
-  const [activeImage, setActiveImage] = useState<string>(product?.images?.[0] || "");
+  // activeImage state removed — now managed by ProductImageGallery component
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
@@ -422,11 +423,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     fetchReviews(reviewsPage);
   }, [reviewsPage]);
 
-  useEffect(() => {
-    if (product && product.images && product.images.length > 0) {
-      setActiveImage(product.images[0]);
-    }
-  }, [product]);
+  // activeImage sync effect removed — ProductImageGallery handles this internally
 
   const { addToCart, toggleCart, cartItems } = useCart();
 
@@ -719,71 +716,10 @@ export default function ProductDetailPage({ params }: PageProps) {
         <div className="product-main-grid">
           
           {/* LEFT: IMAGE PRESENTATION */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Main Primary Image */}
-            <div
-              style={{
-                aspectRatio: "3/4",
-                overflow: "hidden",
-                border: "1px solid var(--color-outline-variant)",
-                backgroundColor: "#eaeaea",
-                position: "relative",
-              }}
-            >
-              <img
-                src={activeImage}
-                alt={product.title}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  transition: "opacity 0.3s ease",
-                }}
-              />
-            </div>
-
-            {/* Thumbnail Gallery (All images in folder) */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: "10px",
-                overflowX: "auto",
-                paddingBottom: "8px",
-              }}
-            >
-              {product.images.map((img, idx) => {
-                const isActive = activeImage === img;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImage(img)}
-                    style={{
-                      aspectRatio: "3/4",
-                      overflow: "hidden",
-                      border: isActive ? "2px solid var(--color-ruby)" : "1px solid var(--color-outline-variant)",
-                      padding: 0,
-                      cursor: "pointer",
-                      backgroundColor: "#f5f5f5",
-                      transition: "border-color 0.2s",
-                    }}
-                  >
-                    <img
-                      src={img}
-                      alt={`${product.title} view ${idx + 1}`}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        opacity: isActive ? 1 : 0.75,
-                        transition: "opacity 0.2s",
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <ProductImageGallery
+            images={product.images}
+            title={product.title}
+          />
 
           {/* RIGHT: DETAILS COLUMN */}
           <div

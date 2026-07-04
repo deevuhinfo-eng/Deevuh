@@ -22,6 +22,16 @@ export const metadata: Metadata = {
   description:
     "Discover curated luxury fashion that bridges tradition and modernity. Premium Indian fashion with editorial aesthetics and artisanal craftsmanship.",
   keywords: ["fashion", "luxury", "Indian fashion", "contemporary", "ethnic wear", "designer"],
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon",
+  },
+  other: {
+    "theme-color": "#98111E",
+    "msapplication-TileColor": "#98111E",
+  },
 };
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
