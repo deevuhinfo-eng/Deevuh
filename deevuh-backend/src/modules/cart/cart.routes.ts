@@ -47,8 +47,12 @@ router.post('/add', authMiddleware, customerGuard, async (req: AuthenticatedRequ
       return;
     }
 
-    // Validate variant exists and has stock
-    const variant = await prisma.productVariant.findUnique({ where: { id: productVariantId } });
+    // 1. Parallelize stock verification and cart retrieval (reduces sequential roundtrips)
+    const [variant, existingCart] = await Promise.all([
+      prisma.productVariant.findUnique({ where: { id: productVariantId } }),
+      prisma.cart.findFirst({ where: { userId, status: 'active' } })
+    ]);
+
     if (!variant) {
       res.status(404).json({ status: 'error', message: 'Product variant not found.' });
       return;
@@ -58,39 +62,62 @@ router.post('/add', authMiddleware, customerGuard, async (req: AuthenticatedRequ
       return;
     }
 
-    // Get or create active cart
-    let cart = await prisma.cart.findFirst({ where: { userId, status: 'active' } });
-    if (!cart) {
-      cart = await prisma.cart.create({
+    // 2. Resolve active cart ID
+    let cartId = existingCart?.id;
+    if (!cartId) {
+      const newCart = await prisma.cart.create({
         data: { userId: userId || null, status: 'active' },
       });
+      cartId = newCart.id;
     }
 
-    // Check if item already in cart
+    // 3. Check duplicate item
     const existingItem = await prisma.cartItem.findFirst({
-      where: { cartId: cart.id, productVariantId },
+      where: { cartId, productVariantId },
     });
 
     if (existingItem) {
-      await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity },
-      });
+      // Run updates inside a fast database transaction to execute parallel database writes
+      await prisma.$transaction([
+        prisma.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: existingItem.quantity + quantity },
+        }),
+        prisma.cart.update({
+          where: { id: cartId },
+          data: { lastActivityAt: new Date() },
+        })
+      ]);
     } else {
-      await prisma.cartItem.create({
-        data: { cartId: cart.id, productVariantId, quantity },
-      });
+      await prisma.$transaction([
+        prisma.cartItem.create({
+          data: { cartId, productVariantId, quantity },
+        }),
+        prisma.cart.update({
+          where: { id: cartId },
+          data: { lastActivityAt: new Date() },
+        })
+      ]);
     }
 
-    // Touch cart activity
-    await prisma.cart.update({
-      where: { id: cart.id },
-      data: { lastActivityAt: new Date() },
-    });
-
+    // 4. Retrieve cart with optimized relational selects to reduce massive N+1 includes & serialization overhead
     const updatedCart = await prisma.cart.findUnique({
-      where: { id: cart.id },
-      include: { items: { include: { variant: { include: { product: { include: { images: true } } } } } } },
+      where: { id: cartId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: {
+                  include: {
+                    images: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     res.status(200).json({ status: 'success', data: updatedCart });

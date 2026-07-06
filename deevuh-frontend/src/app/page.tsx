@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { PRODUCTS, Product } from "../data/products";
 import { useCart } from "@/context/CartContext";
 import api from "@/lib/api";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 
 const mapBackendProduct = (prod: any): Product => ({
   id: prod.id,
@@ -327,7 +328,7 @@ export default function Home() {
                   onMouseLeave={() => setHoveredProduct(null)}
                 >
                   <img
-                    src={prod.images[0]}
+                    src={cloudinaryUrl(prod.images[0], { width: 400 })}
                     alt={prod.title}
                     style={{
                       width: "100%",
@@ -494,7 +495,7 @@ export default function Home() {
                     }}
                   >
                     <img
-                      src={currentImage}
+                      src={cloudinaryUrl(currentImage, { width: 640 })}
                       alt={product.title}
                       style={{
                         width: "100%",
@@ -698,7 +699,7 @@ export default function Home() {
                       }}
                     >
                       <img
-                        src={currentImage}
+                        src={cloudinaryUrl(currentImage, { width: 640 })}
                         alt={product.title}
                         style={{
                           width: "100%",

@@ -86,23 +86,32 @@ export const getProduct = async (req: Request, res: Response): Promise<void> => 
 
       // Fallback matching slugified titles
       if (!product) {
-        const allProducts = await prisma.product.findMany({
-          include: {
-            variants: true,
-            images: {
-              orderBy: {
-                order: 'asc'
-              }
-            }
-          },
+        const productsSummary = await prisma.product.findMany({
+          select: {
+            id: true,
+            title: true
+          }
         });
-        product = allProducts.find(p => {
+        const matched = productsSummary.find(p => {
           const formattedSlug = p.title
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/(^-|-$)/g, '');
           return formattedSlug === idOrSlug;
-        }) || null;
+        });
+        if (matched) {
+          product = await prisma.product.findUnique({
+            where: { id: matched.id },
+            include: {
+              variants: true,
+              images: {
+                orderBy: {
+                  order: 'asc'
+                }
+              }
+            }
+          });
+        }
       }
     }
 

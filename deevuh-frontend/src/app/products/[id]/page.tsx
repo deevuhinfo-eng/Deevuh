@@ -101,7 +101,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     hasReviewed: false,
     existingReview: null
   });
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  // currentUser state is now read from CartContext (useCart) to prevent redundant /auth/me queries
   
   // Review form state
   const [selectedRating, setSelectedRating] = useState<number>(0);
@@ -150,17 +150,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     });
   };
 
-  // Fetch current user details
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await api.get('/auth/me');
-      if (res?.status === 'success' && res.data) {
-        setCurrentUser(res.data);
-      }
-    } catch (err) {
-      setCurrentUser(null);
-    }
-  };
+  // fetchCurrentUser is removed since we consume currentUser from CartContext
 
   // Fetch reviews list
   const fetchReviews = async (page: number) => {
@@ -399,23 +389,22 @@ export default function ProductDetailPage({ params }: PageProps) {
     }
   };
 
+  const { addToCart, toggleCart, cartItems, currentUser, isAuthenticated } = useCart();
+
   const handleSortChange = (newSort: string) => {
     setReviewsSort(newSort);
     setReviewsPage(1);
   };
-
-  // Initial user fetch
-  useEffect(() => {
-    fetchCurrentUser();
-  }, []);
 
   // Fetch product ratings/reviews when product or sort changes
   useEffect(() => {
     if (!dbProduct?.id) return;
     fetchRatingSummary();
     fetchReviews(1);
-    checkUserPurchaseAndReviewStatus();
-  }, [dbProduct?.id, reviewsSort]);
+    if (isAuthenticated) {
+      checkUserPurchaseAndReviewStatus();
+    }
+  }, [dbProduct?.id, reviewsSort, isAuthenticated]);
 
   // Fetch reviews when page changes
   useEffect(() => {
@@ -425,13 +414,13 @@ export default function ProductDetailPage({ params }: PageProps) {
 
   // activeImage sync effect removed — ProductImageGallery handles this internally
 
-  const { addToCart, toggleCart, cartItems } = useCart();
-
   // Get other 3 products for the related section dynamically from database
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    api.get("/products")
+    if (!product?.category) return;
+    // Optimize request by only retrieving up to 4 items in the same category
+    api.get(`/products?limit=4&category=${product.category}`)
       .then((res: any) => {
         const productList = res.data || [];
         const filtered = productList
@@ -443,7 +432,7 @@ export default function ProductDetailPage({ params }: PageProps) {
       .catch((err) => {
         console.error("Failed to fetch related products from database:", err);
       });
-  }, [id]);
+  }, [id, product?.category]);
 
   if (loading) {
     return (

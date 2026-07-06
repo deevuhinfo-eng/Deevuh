@@ -24,11 +24,14 @@ interface CartContextType {
   cartTotal: number;
   isOpen: boolean;
   isLoading: boolean;
+  currentUser: any;
+  isAuthenticated: boolean;
   addToCart: (product: any, size: string, quantity: number) => Promise<void>;
   updateCartQty: (cartItemId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   toggleCart: (force?: boolean) => void;
-  syncCartWithBackend: () => Promise<void>;
+  syncCartWithBackend: (userParam?: any) => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -37,6 +40,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Helper to calculate total from cart items list
@@ -46,88 +50,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Sync cart from backend (if logged in) or localStorage (if guest)
-  const syncCartWithBackend = async () => {
-    try {
-      setIsLoading(true);
-      // Determine if logged in by checking auth/me
-      const meRes = await api.get('/auth/me');
-      if (meRes?.status === 'success') {
-        setIsAuthenticated(true);
-        
-        // Migrate any guest cart items from localStorage to DB cart
-        const local = localStorage.getItem('deevuh_cart');
-        if (local) {
-          try {
-            const guestItems = JSON.parse(local);
-            if (Array.isArray(guestItems) && guestItems.length > 0) {
-              for (const item of guestItems) {
-                let variantId = item.productVariantId;
-                
-                // If it is a fallback ID (unregistered static mock), dynamically resolve the DB UUID
-                if (variantId?.startsWith('fallback-') && item.variant?.product?.id) {
-                  try {
-                    const prodRes = await api.get(`/products/${item.variant.product.id}`);
-                    if (prodRes?.status === 'success' && prodRes.data?.variants) {
-                      const matchingVar = prodRes.data.variants.find(
-                        (v: any) => v.size === item.variant.size
-                      );
-                      if (matchingVar) {
-                        variantId = matchingVar.id;
-                      }
-                    }
-                  } catch (err) {
-                    console.error('Failed to resolve fallback variant ID during migration:', err);
-                  }
-                }
-
-                // Only post valid UUIDs to the backend cart to prevent database cast crashes
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                if (variantId && uuidRegex.test(variantId) && item.quantity > 0) {
-                  await api.post('/cart/add', {
-                    productVariantId: variantId,
-                    quantity: item.quantity
-                  });
-                }
-              }
-            }
-          } catch (e) {
-            console.error('Failed to migrate guest cart:', e);
-          } finally {
-            localStorage.removeItem('deevuh_cart');
-          }
-        }
-
-        // Fetch user's persistent database cart
-        const cartRes = await api.get('/cart');
-        if (cartRes?.status === 'success' && cartRes.data?.items) {
-          // Normalise backend cart structure to frontend CartItem interface
-          const mappedItems = cartRes.data.items.map((item: any) => ({
-            id: item.id,
-            productVariantId: item.productVariantId,
-            quantity: item.quantity,
-            variant: {
-              id: item.variant.id,
-              size: item.variant.size,
-              price: String(item.variant.price),
-              product: {
-                id: item.variant.product.id,
-                title: item.variant.product.title,
-                images: item.variant.product.images.map((img: any) => ({
-                  imageUrl: img.imageUrl
-                }))
-              }
-            }
-          }));
-          setCartItems(mappedItems);
-        } else {
-          setCartItems([]);
-        }
-      } else {
-        throw new Error('Not logged in');
-      }
-    } catch {
-      setIsAuthenticated(false);
-      // User is a guest, fetch from localStorage
+  const syncCartWithBackend = async (userParam?: any) => {
+    const user = userParam !== undefined ? userParam : currentUser;
+    if (!user) {
+      // Guest behavior or fallback
       const local = localStorage.getItem('deevuh_cart');
       if (local) {
         try {
@@ -138,22 +64,154 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } else {
         setCartItems([]);
       }
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      // Migrate any guest cart items from localStorage to DB cart
+      const local = localStorage.getItem('deevuh_cart');
+      if (local) {
+        try {
+          const guestItems = JSON.parse(local);
+          if (Array.isArray(guestItems) && guestItems.length > 0) {
+            for (const item of guestItems) {
+              let variantId = item.productVariantId;
+              
+              // If it is a fallback ID (unregistered static mock), dynamically resolve the DB UUID
+              if (variantId?.startsWith('fallback-') && item.variant?.product?.id) {
+                try {
+                  const prodRes = await api.get(`/products/${item.variant.product.id}`);
+                  if (prodRes?.status === 'success' && prodRes.data?.variants) {
+                    const matchingVar = prodRes.data.variants.find(
+                      (v: any) => v.size === item.variant.size
+                    );
+                    if (matchingVar) {
+                      variantId = matchingVar.id;
+                    }
+                  }
+                } catch (err) {
+                  console.error('Failed to resolve fallback variant ID during migration:', err);
+                }
+              }
+
+              // Only post valid UUIDs to the backend cart to prevent database cast crashes
+              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              if (variantId && uuidRegex.test(variantId) && item.quantity > 0) {
+                await api.post('/cart/add', {
+                  productVariantId: variantId,
+                  quantity: item.quantity
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Failed to migrate guest cart:', e);
+        } finally {
+          localStorage.removeItem('deevuh_cart');
+        }
+      }
+
+      // Fetch user's persistent database cart
+      const cartRes = await api.get('/cart');
+      if (cartRes?.status === 'success' && cartRes.data?.items) {
+        // Normalise backend cart structure to frontend CartItem interface
+        const mappedItems = cartRes.data.items.map((item: any) => ({
+          id: item.id,
+          productVariantId: item.productVariantId,
+          quantity: item.quantity,
+          variant: {
+            id: item.variant.id,
+            size: item.variant.size,
+            price: String(item.variant.price),
+            product: {
+              id: item.variant.product.id,
+              title: item.variant.product.title,
+              images: item.variant.product.images.map((img: any) => ({
+                imageUrl: img.imageUrl
+              }))
+            }
+          }
+        }));
+        setCartItems(mappedItems);
+      } else {
+        setCartItems([]);
+      }
+    } catch (err) {
+      console.error('Failed to sync cart:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const refreshAuth = async () => {
+    try {
+      const meRes = await api.get('/auth/me');
+      if (meRes?.status === 'success' && meRes.data) {
+        setIsAuthenticated(true);
+        setCurrentUser(meRes.data);
+        await syncCartWithBackend(meRes.data);
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        setCartItems([]);
+      }
+    } catch {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      setCartItems([]);
+    }
+  };
+
+  // Fetch CSRF and initial auth state on mount
   useEffect(() => {
-    // Fetch CSRF token globally on mount to ensure cookie is present for any non-safe actions
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/auth/csrf`, {
-      method: 'GET',
-      credentials: 'include',
-    })
-      .then(() => syncCartWithBackend())
-      .catch((err) => {
+    const initialize = async () => {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/auth/csrf`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+      } catch (err) {
         console.error('Failed to fetch CSRF token:', err);
-        syncCartWithBackend();
-      });
+      }
+      
+      try {
+        const meRes = await api.get('/auth/me');
+        if (meRes?.status === 'success' && meRes.data) {
+          setIsAuthenticated(true);
+          setCurrentUser(meRes.data);
+          await syncCartWithBackend(meRes.data);
+        } else {
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          // Guest mode
+          const local = localStorage.getItem('deevuh_cart');
+          if (local) {
+            try {
+              setCartItems(JSON.parse(local));
+            } catch {
+              setCartItems([]);
+            }
+          }
+        }
+      } catch {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        // Guest mode
+        const local = localStorage.getItem('deevuh_cart');
+        if (local) {
+          try {
+            setCartItems(JSON.parse(local));
+          } catch {
+            setCartItems([]);
+          }
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    initialize();
   }, []);
 
   // Sync guest cart to local storage whenever it changes
@@ -184,6 +242,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           quantity
         });
         if (res?.status === 'success') {
+          // Sync without re-querying auth
           await syncCartWithBackend();
         }
       } catch (err: any) {
@@ -270,11 +329,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       cartTotal,
       isOpen,
       isLoading,
+      currentUser,
+      isAuthenticated,
       addToCart,
       updateCartQty,
       removeFromCart,
       toggleCart,
-      syncCartWithBackend
+      syncCartWithBackend,
+      refreshAuth
     }}>
       {children}
     </CartContext.Provider>

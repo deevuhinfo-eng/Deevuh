@@ -294,19 +294,20 @@ export const getProductRatingSummary = async (req: AuthenticatedRequest, res: Re
   try {
     const productId = req.params.productId as string;
 
-    // Fetch all active reviews to compute aggregates
-    const reviews = await prisma.review.findMany({
+    // Use Prisma groupBy to perform database-level aggregation (avoids memory bloat & N+1)
+    const ratingsGroup = await prisma.review.groupBy({
+      by: ['rating'],
       where: {
         productId,
         isHidden: false
       },
-      select: {
+      _count: {
         rating: true
       }
     });
 
-    const totalCount = reviews.length;
-    let averageRating = 0;
+    let totalCount = 0;
+    let sum = 0;
     const distribution = {
       5: 0,
       4: 0,
@@ -315,17 +316,17 @@ export const getProductRatingSummary = async (req: AuthenticatedRequest, res: Re
       1: 0
     };
 
-    if (totalCount > 0) {
-      const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
-      averageRating = Math.round((sum / totalCount) * 10) / 10; // Rounded to 1 decimal place
+    ratingsGroup.forEach((group) => {
+      const ratingKey = group.rating as 1 | 2 | 3 | 4 | 5;
+      const count = group._count.rating;
+      if (distribution[ratingKey] !== undefined) {
+        distribution[ratingKey] = count;
+        totalCount += count;
+        sum += ratingKey * count;
+      }
+    });
 
-      reviews.forEach((r) => {
-        const ratingKey = r.rating as 1 | 2 | 3 | 4 | 5;
-        if (distribution[ratingKey] !== undefined) {
-          distribution[ratingKey]++;
-        }
-      });
-    }
+    const averageRating = totalCount > 0 ? Math.round((sum / totalCount) * 10) / 10 : 0;
 
     // Calculate percentage breakdown
     const breakdown = Object.entries(distribution).reduce((acc, [key, count]) => {
@@ -365,26 +366,26 @@ export const checkPurchaseStatus = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    // 1. Verify successful purchase
-    const successfulOrder = await prisma.order.findFirst({
-      where: {
-        userId,
-        paymentStatus: 'SUCCESS',
-        items: {
-          some: {
-            variant: {
-              productId
+    // Parallelize purchase verification and review checking to optimize DB queries
+    const [successfulOrder, existingReview] = await Promise.all([
+      prisma.order.findFirst({
+        where: {
+          userId,
+          paymentStatus: 'SUCCESS',
+          items: {
+            some: {
+              variant: {
+                productId
+              }
             }
           }
         }
-      }
-    });
-
-    // 2. Fetch existing review if any
-    const existingReview = await prisma.review.findFirst({
-      where: { productId, userId },
-      include: { images: true }
-    });
+      }),
+      prisma.review.findFirst({
+        where: { productId, userId },
+        include: { images: true }
+      })
+    ]);
 
     res.status(200).json({
       status: 'success',

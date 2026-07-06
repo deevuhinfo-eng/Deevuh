@@ -7,7 +7,7 @@ import api from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
 export default function UserDashboard() {
-  const { cartItems, toggleCart } = useCart();
+  const { cartItems, toggleCart, currentUser, isAuthenticated, refreshAuth, isLoading: isCartLoading } = useCart();
   const router = useRouter();
   const [customer, setCustomer] = useState({
     name: "Loading...",
@@ -37,77 +37,77 @@ export default function UserDashboard() {
   const [fitInput, setFitInput] = useState("Tailored Slim Fit");
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        // Fetch current user details
-        const meRes = await api.get<{ status: string; data: any }>('/auth/me');
-        const user = meRes.data;
-        
-        // Fetch orders
-        const ordersRes = await api.get<{ status: string; data: any[] }>('/orders');
-        const userOrders = ordersRes.data || [];
-        
-        setOrders(userOrders);
+    if (isCartLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/login?redirect=/dashboard');
+      return;
+    }
 
-        // Fetch wishlist
-        try {
-          const wishlistRes = await api.wishlist.list();
-          setWishlistItems(wishlistRes.data || []);
-        } catch (wishlistErr) {
-          console.error("Failed to load wishlist:", wishlistErr);
-        }
+    const fetchDashboardData = async () => {
+      try {
+        // Parallelize fetching orders and wishlist to optimize queries
+        const [ordersRes, wishlistRes] = await Promise.all([
+          api.get<{ status: string; data: any[] }>('/orders'),
+          api.wishlist.list().catch(() => ({ data: [] }))
+        ]);
+
+        const userOrders = ordersRes.data || [];
+        setOrders(userOrders);
+        setWishlistItems(wishlistRes.data || []);
 
         // Get address from latest order if not provided
         let latestAddress = "No address saved";
-        let phone = user.phone || "Not provided";
+        let phone = currentUser?.phone || "Not provided";
         
         if (userOrders.length > 0) {
           const latestOrder = userOrders[0];
           if (latestOrder.shippingAddress) {
             latestAddress = latestOrder.shippingAddress;
           }
-          if (!user.phone && latestOrder.shippingPhone) {
+          if (!currentUser?.phone && latestOrder.shippingPhone) {
             phone = latestOrder.shippingPhone;
           }
         }
 
         setCustomer(prev => ({
           ...prev,
-          name: user.name || "Valued Customer",
-          email: user.email,
+          name: currentUser?.name || "Valued Customer",
+          email: currentUser?.email || "",
           phone: phone,
-          memberSince: user.createdAt 
-            ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
+          memberSince: currentUser?.createdAt 
+            ? new Date(currentUser.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
             : "Not available",
           address: latestAddress,
           measurements: {
-            chest: user.chest || "Not set",
-            waist: user.waist || "Not set",
-            shoulder: user.shoulder || "Not set",
-            height: user.height || "Not set",
-            fit: user.fit || "Not calibrated",
+            chest: currentUser?.chest || "Not set",
+            waist: currentUser?.waist || "Not set",
+            shoulder: currentUser?.shoulder || "Not set",
+            height: currentUser?.height || "Not set",
+            fit: currentUser?.fit || "Not calibrated",
           }
         }));
 
-        setChestInput(user.chest || "");
-        setWaistInput(user.waist || "");
-        setShoulderInput(user.shoulder || "");
-        setHeightInput(user.height || "");
-        setFitInput(user.fit || "Tailored Slim Fit");
+        setChestInput(currentUser?.chest || "");
+        setWaistInput(currentUser?.waist || "");
+        setShoulderInput(currentUser?.shoulder || "");
+        setHeightInput(currentUser?.height || "");
+        setFitInput(currentUser?.fit || "Tailored Slim Fit");
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
-        router.replace('/login?redirect=/dashboard');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserData();
-  }, [router]);
+    if (currentUser) {
+      fetchDashboardData();
+    }
+  }, [currentUser, isAuthenticated, isCartLoading, router]);
 
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
+      await refreshAuth(); // clear auth session globally
       router.push('/login');
     } catch {
       router.push('/login');
@@ -117,7 +117,7 @@ export default function UserDashboard() {
   const handleSaveSizing = async () => {
     try {
       setIsLoading(true);
-      const res = await api.put('/auth/sizing', {
+      await api.put('/auth/sizing', {
         chest: chestInput,
         waist: waistInput,
         shoulder: shoulderInput,
@@ -125,16 +125,8 @@ export default function UserDashboard() {
         fit: fitInput
       });
       
-      setCustomer(prev => ({
-        ...prev,
-        measurements: {
-          chest: res.data.chest || "Not set",
-          waist: res.data.waist || "Not set",
-          shoulder: res.data.shoulder || "Not set",
-          height: res.data.height || "Not set",
-          fit: res.data.fit || "Not calibrated",
-        }
-      }));
+      // Refresh Auth Context to sync updated sizing details globally
+      await refreshAuth();
       setIsEditingSizing(false);
     } catch (err: any) {
       alert(err.message || "Failed to save tailoring profile.");

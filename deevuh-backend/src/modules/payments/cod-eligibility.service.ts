@@ -44,26 +44,27 @@ export async function checkCODEligibility(
     };
   }
 
+  // Parallelize risk audit and order count checks to optimize Neon/Supabase DB roundtrips
+  const [risk, activeCODOrderCount] = await Promise.all([
+    codSettings.blacklistEnabled
+      ? (prisma as any).customerRisk.findUnique({ where: { userId } })
+      : Promise.resolve(null),
+    (prisma as any).order.count({
+      where: {
+        userId,
+        isCOD: true,
+        paymentStatus: { in: ['SUCCESS', 'BOOKING_RECEIVED'] },
+      },
+    })
+  ]);
+
   // Rule 3 — Customer must not be blacklisted
-  if (codSettings.blacklistEnabled) {
-    const risk = await (prisma as any).customerRisk.findUnique({
-      where: { userId },
-    });
-    if (risk?.isBlacklisted) {
-      console.log(`[COD Eligibility] Denied for user ${userId}: customer is blacklisted.`);
-      return { eligible: false, reason: 'Cash on Delivery is not available for your account.', bookingAmount: 0, remainingAmount: 0 };
-    }
+  if (risk?.isBlacklisted) {
+    console.log(`[COD Eligibility] Denied for user ${userId}: customer is blacklisted.`);
+    return { eligible: false, reason: 'Cash on Delivery is not available for your account.', bookingAmount: 0, remainingAmount: 0 };
   }
 
   // Rule 4 — Customer COD order limit
-  const activeCODOrderCount = await (prisma as any).order.count({
-    where: {
-      userId,
-      isCOD: true,
-      paymentStatus: { in: ['SUCCESS', 'BOOKING_RECEIVED'] },
-    },
-  });
-
   if (activeCODOrderCount >= codSettings.maxPerCustomer) {
     console.log(`[COD Eligibility] Denied for user ${userId}: reached max COD orders (${activeCODOrderCount}/${codSettings.maxPerCustomer}).`);
     return {

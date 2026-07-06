@@ -138,33 +138,8 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
       return;
     }
 
-    if (req.user.role === 'ADMIN') {
-      const admin = await prisma.adminUser.findUnique({ where: { id: req.user.id } });
-      res.status(200).json({
-        status: 'success',
-        data: { id: admin?.id, email: admin?.email, role: admin?.role },
-      });
-      return;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatar: true,
-        authProvider: true,
-        createdAt: true,
-        chest: true,
-        waist: true,
-        shoulder: true,
-        height: true,
-        fit: true,
-      },
-    });
-    res.status(200).json({ status: 'success', data: user });
+    // Return the pre-fetched user details from authMiddleware directly (zero DB roundtrips)
+    res.status(200).json({ status: 'success', data: req.user });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
   }

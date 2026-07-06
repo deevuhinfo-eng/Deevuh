@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useCallback, memo } from "react";
+import cloudinaryUrl from "@/lib/cloudinary";
 
 interface ProductImageGalleryProps {
   images: string[];
@@ -211,7 +212,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
     );
     toPreload.forEach((i) => {
       const img = new Image();
-      img.src = images[i];
+      img.src = cloudinaryUrl(images[i], { width: 1200 });
     });
   }, [activeIndex, images, brokenImages]);
 
@@ -305,7 +306,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
                 </div>
               ) : (
                 <img
-                  src={img}
+                  src={cloudinaryUrl(img, { width: 1200 })}
                   alt={`${title} — view ${idx + 1}`}
                   loading={Math.abs(idx - activeIndex) <= 1 ? "eager" : "lazy"}
                   onError={() => setBrokenImages((prev) => new Set(prev).add(idx))}
@@ -429,7 +430,7 @@ const ProductImageGallery = memo(function ProductImageGallery({
                 </div>
               ) : (
                 <img
-                  src={img}
+                  src={cloudinaryUrl(img, { width: 160 })}
                   alt={`${title} thumbnail ${idx + 1}`}
                   loading="lazy"
                   draggable={false}

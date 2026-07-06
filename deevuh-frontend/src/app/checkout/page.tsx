@@ -8,7 +8,7 @@ import api from '@/lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, cartTotal, syncCartWithBackend } = useCart();
+  const { cartItems, cartTotal, syncCartWithBackend, currentUser, isAuthenticated, isLoading: isCartLoading } = useCart();
 
   // Auth State
   const [isVerifying, setIsVerifying] = useState(true);
@@ -40,6 +40,7 @@ export default function CheckoutPage() {
   } | null>(null);
   const [codLoading, setCodLoading] = useState(false);
 
+  // 1. Fetch COD eligibility when cart details or coupon changes (exclude paymentMethod from deps to avoid loop)
   useEffect(() => {
     if (isVerifying || cartItems.length === 0) return;
     setCodLoading(true);
@@ -47,49 +48,46 @@ export default function CheckoutPage() {
       .then((res: any) => {
         const data = res.data || res;
         setCodEligibility(data);
-        if (data && !data.eligible && paymentMethod === 'COD') {
-          setPaymentMethod('ONLINE');
+        if (data && !data.eligible) {
+          setPaymentMethod(prev => prev === 'COD' ? 'ONLINE' : prev);
         }
       })
       .catch((err) => {
         console.error('Failed to fetch COD eligibility:', err);
       })
       .finally(() => setCodLoading(false));
-  }, [isVerifying, cartItems, cartTotal, couponDiscount, paymentMethod]);
+  }, [isVerifying, cartItems, cartTotal, couponDiscount]);
 
+  // 2. Consume pre-resolved auth state from CartContext to eliminate duplicate /auth/me queries
   useEffect(() => {
-    const verifySession = async () => {
-      try {
-        const res = await api.get('/auth/me');
-        if (res?.status === 'success' && res.data) {
-          setUserEmail(res.data.email);
-          setShippingName(res.data.name || '');
-          setShippingPhone(res.data.phone || '');
-          
-          // Migrate guest cart and fetch backend state
-          await syncCartWithBackend();
-          
-          // Pre-populate address from latest order if available
-          const ordersRes = await api.get('/orders');
+    if (isCartLoading) return;
+
+    if (!isAuthenticated) {
+      router.replace('/login?redirect=/checkout');
+      return;
+    }
+
+    if (currentUser) {
+      setUserEmail(currentUser.email);
+      setShippingName(currentUser.name || '');
+      setShippingPhone(currentUser.phone || '');
+      setIsVerifying(false);
+
+      // Pre-populate address from latest order if available
+      api.get('/orders')
+        .then((ordersRes: any) => {
           if (ordersRes?.status === 'success' && ordersRes.data?.length > 0) {
             setShippingAddress(ordersRes.data[0].shippingAddress || '');
-            if (!res.data.phone && ordersRes.data[0].shippingPhone) {
+            if (!currentUser.phone && ordersRes.data[0].shippingPhone) {
               setShippingPhone(ordersRes.data[0].shippingPhone);
             }
           }
-        } else {
-          router.replace('/login?redirect=/checkout');
-        }
-      } catch (err) {
-        console.error('Failed to verify session:', err);
-        router.replace('/login?redirect=/checkout');
-      } finally {
-        setIsVerifying(false);
-      }
-    };
-
-    verifySession();
-  }, [router]);
+        })
+        .catch((err) => {
+          console.error('Failed to pre-populate address from past orders:', err);
+        });
+    }
+  }, [currentUser, isAuthenticated, isCartLoading, router]);
 
   // Handle PayU failure redirects
   useEffect(() => {

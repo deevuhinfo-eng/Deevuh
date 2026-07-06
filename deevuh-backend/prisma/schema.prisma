@@ -80,6 +80,7 @@ model Product {
   updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@index([category])
+  @@index([isActive])
   @@map("products")
 }
 
@@ -164,6 +165,7 @@ model Order {
   @@index([userId])
   @@index([paymentStatus, orderStatus])
   @@index([paymentMethod])
+  @@index([userId, isCOD, paymentStatus])
   @@map("orders")
 }
 
@@ -259,6 +261,7 @@ model Review {
 
   @@unique([productId, userId], name: "product_user_unique")
   @@index([userId])
+  @@index([productId, isHidden])
   @@map("reviews")
 }
 
@@ -269,6 +272,7 @@ model ReviewImage {
   imageUrl  String   @map("image_url") @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([reviewId])
   @@map("review_images")
 }
 
