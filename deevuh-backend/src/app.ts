@@ -17,6 +17,7 @@ import adminRoutes from './modules/admin/admin.routes.js';
 import uploadRoutes from './modules/uploads/uploads.routes.js';
 import reviewsRoutes from './modules/reviews/reviews.routes.js';
 import wishlistRoutes from './modules/wishlist/wishlist.routes.js';
+import debugRoutes from './modules/debug/debug.routes.js';
 
 import { correlationMiddleware } from './middleware/correlation.js';
 
@@ -100,6 +101,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Global error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

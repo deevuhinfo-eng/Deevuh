@@ -1,21 +1,6 @@
 import type { Metadata } from "next";
-import { Noto_Serif, Inter } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
-
-const notoSerif = Noto_Serif({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "DEEVUH — Where Divine Meets Contemporary",
@@ -37,6 +22,7 @@ export const metadata: Metadata = {
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { CartProvider } from '@/context/CartContext';
 import CartDrawer from '@/components/cart/CartDrawer';
+import Diagnostics from '@/components/Diagnostics';
 
 export default function RootLayout({
   children,
@@ -44,12 +30,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${notoSerif.variable} ${inter.variable}`}>
+    <html lang="en">
       <body>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
           <CartProvider>
             {children}
             <CartDrawer />
+            <Diagnostics />
             <Analytics />
           </CartProvider>
         </GoogleOAuthProvider>

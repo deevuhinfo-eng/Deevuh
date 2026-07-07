@@ -33,7 +33,7 @@ export default function Home() {
       })
       .catch((err) => {
         console.error("Backend products fetch failed:", err);
-        setError("Failed to load catalog products from the database.");
+        setError(`Failed to load catalog products from the database: ${err.message || String(err)}`);
       })
       .finally(() => {
         setLoading(false);
