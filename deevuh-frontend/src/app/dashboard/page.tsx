@@ -147,6 +147,27 @@ export default function UserDashboard() {
   // Custom styling attributes
   const borderStyle = "1px solid var(--color-outline-variant)";
 
+  if (isCartLoading || !isAuthenticated) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--color-surface)',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-serif)',
+          fontSize: '18px',
+          color: 'var(--color-on-surface-variant)',
+          letterSpacing: '0.05em',
+        }}>
+          Verifying session...
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div style={{

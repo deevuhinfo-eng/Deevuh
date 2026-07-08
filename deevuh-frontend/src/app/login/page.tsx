@@ -4,12 +4,14 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import api from '@/lib/api';
+import { useCart } from '@/context/CartContext';
 
 // Inner component that uses useSearchParams — must be wrapped in Suspense
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
+  const { refreshAuth, currentUser, isAuthenticated, isLoading: isCartLoading } = useCart();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +28,15 @@ function LoginForm() {
     }).catch(err => console.error('Failed to fetch CSRF token:', err));
   }, []);
 
+  // Redirect if already authenticated to prevent login flashes
+  useEffect(() => {
+    if (isCartLoading) return;
+    if (isAuthenticated && currentUser) {
+      const userRole = currentUser.role;
+      router.replace(userRole === 'ADMIN' ? '/admin' : '/dashboard');
+    }
+  }, [isAuthenticated, currentUser, isCartLoading, router]);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -38,6 +49,9 @@ function LoginForm() {
       } else {
         res = await api.post('/auth/login', { email, password });
       }
+      
+      // Update global auth state before redirecting
+      await refreshAuth();
       
       const userRole = res?.data?.user?.role;
       let targetUrl = redirectUrl;
@@ -64,6 +78,9 @@ function LoginForm() {
       setIsLoading(true);
       setError('');
       const res = await api.post('/auth/google', { idToken: credentialResponse.credential });
+      
+      // Update global auth state before redirecting
+      await refreshAuth();
       
       const userRole = res?.data?.user?.role;
       let targetUrl = redirectUrl;
