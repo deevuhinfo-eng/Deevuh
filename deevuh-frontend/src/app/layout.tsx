@@ -9,9 +9,9 @@ export const metadata: Metadata = {
   keywords: ["fashion", "luxury", "Indian fashion", "contemporary", "ethnic wear", "designer"],
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", type: "image/png" },
     ],
-    apple: "/apple-icon",
+    apple: "/apple-touch-icon.png",
   },
   other: {
     "theme-color": "#98111E",
