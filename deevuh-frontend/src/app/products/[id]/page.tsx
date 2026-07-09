@@ -759,7 +759,7 @@ export default function ProductDetailPage({ params }: PageProps) {
               <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
                 <span
                   style={{
-                    fontFamily: "var(--font-serif)",
+                    fontFamily: "var(--font-sans)",
                     fontSize: "var(--product-price-size)",
                     fontWeight: 700,
                     color: "var(--color-charcoal)",

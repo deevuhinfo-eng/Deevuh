@@ -356,7 +356,7 @@ export default function AdminOrdersPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, borderTop: "2px solid var(--color-outline)", paddingTop: "10px", marginTop: "4px" }}>
                 <span style={{ fontSize: "14px" }}>Total Gross (GST Inc.)</span>
-                <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-serif)" }}>
+                <span style={{ color: "var(--color-ruby)", fontSize: "18px", fontFamily: "var(--font-sans)" }}>
                   ₹{Number(activeOrderDetails.finalAmount).toLocaleString("en-IN")}
                 </span>
               </div>

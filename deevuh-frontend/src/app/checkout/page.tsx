@@ -671,7 +671,7 @@ export default function CheckoutPage() {
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: borderStyle, paddingTop: '12px', marginTop: '4px' }}>
                     <span style={{ fontWeight: 700 }}>Total amount</span>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--color-charcoal)' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: '22px', fontWeight: 700, color: 'var(--color-charcoal)' }}>
                       ₹{total.toLocaleString('en-IN')}
                     </span>
                   </div>

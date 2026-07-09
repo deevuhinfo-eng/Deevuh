@@ -539,7 +539,7 @@ export default function UserDashboard() {
                                     </span>
                                   </div>
                                   <div style={{ textAlign: "right" }}>
-                                    <span style={{ fontSize: "18px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
+                                    <span style={{ fontSize: "18px", fontFamily: "var(--font-sans)", fontWeight: 700 }}>
                                       ₹{price.toLocaleString("en-IN")}
                                     </span>
                                   </div>
@@ -550,7 +550,7 @@ export default function UserDashboard() {
                           
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "24px", paddingTop: "16px", borderTop: borderStyle }}>
                             <span style={{ fontSize: "14px", color: "var(--color-on-surface-variant)" }}>Total Paid</span>
-                            <span style={{ fontSize: "20px", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
+                            <span style={{ fontSize: "20px", fontFamily: "var(--font-sans)", fontWeight: 700 }}>
                               ₹{Number(order.finalAmount || 0).toLocaleString("en-IN")}
                             </span>
                           </div>
@@ -715,7 +715,7 @@ export default function UserDashboard() {
                         </div>
                         <div style={{ padding: "16px", display: "flex", flexDirection: "column", flex: 1 }}>
                           <h4 style={{ margin: "0 0 8px 0", fontSize: "16px", fontWeight: 600 }}>{p.title}</h4>
-                          <span style={{ fontSize: "16px", fontFamily: "var(--font-serif)", fontWeight: 700, marginBottom: "16px" }}>
+                          <span style={{ fontSize: "16px", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: "16px" }}>
                             ₹{Number(p.price).toLocaleString("en-IN")}
                           </span>
                           <Link

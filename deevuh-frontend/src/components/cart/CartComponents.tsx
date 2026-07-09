@@ -88,7 +88,7 @@ export function CartItem({ item, onUpdateQty, onRemove, onMoveToWishlist }: Cart
 
           {/* Price */}
           <span style={{
-            fontFamily: 'var(--font-serif)',
+            fontFamily: 'var(--font-sans)',
             fontSize: '16px',
             fontWeight: 600,
           }}>
@@ -162,7 +162,7 @@ export function CartSummary({ subtotal, couponDiscount = 0, couponCode }: CartSu
         }}>
           <span style={{ fontWeight: 600 }}>Total</span>
           <span style={{
-            fontFamily: 'var(--font-serif)',
+            fontFamily: 'var(--font-sans)',
             fontSize: '22px',
             fontWeight: 600,
             color: 'var(--color-charcoal)',

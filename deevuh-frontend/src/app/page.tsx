@@ -576,7 +576,7 @@ export default function Home() {
                     >
                       <span
                         style={{
-                          fontFamily: "var(--font-serif)",
+                          fontFamily: "var(--font-sans)",
                           fontSize: "17px",
                           fontWeight: 700,
                           color: "var(--color-charcoal)",
@@ -780,7 +780,7 @@ export default function Home() {
                       >
                         <span
                           style={{
-                            fontFamily: "var(--font-serif)",
+                            fontFamily: "var(--font-sans)",
                             fontSize: "17px",
                             fontWeight: 700,
                             color: "var(--color-charcoal)",

@@ -112,7 +112,7 @@ export default function ProductCard({ product, onQuickAdd }: ProductCardProps) {
           <span style={{
             fontSize: '18px',
             fontWeight: 600,
-            fontFamily: 'var(--font-serif)',
+            fontFamily: 'var(--font-sans)',
             color: 'var(--color-charcoal)',
           }}>
             ₹{lowestPrice.toLocaleString('en-IN')}
