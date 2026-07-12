@@ -3,11 +3,9 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import prisma from '../../config/database.js';
 import { AuthenticatedRequest } from '../../middleware/authMiddleware.js';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from './token.service.js';
 import { setAuthCookies, clearAuthCookies, logAuthEvent } from './auth.service.js';
-import { getAccessCookieOptions } from '../../utils/cookies.js';
-import { verifyGoogleToken } from './google.service.js';
-import { generateVerificationToken, sendVerificationEmail, generatePasswordResetToken, sendPasswordResetEmail } from './email.service.js';
+import { supabase, supabaseAdmin } from '../../config/supabase.js';
+import { generateVerificationToken, sendVerificationEmail } from './email.service.js';
 
 const SALT_ROUNDS = 12;
 
@@ -16,55 +14,50 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
     const normalizedEmail = email ? email.trim().toLowerCase() : '';
 
-    // Check admin_users first
-    const adminUser = await prisma.adminUser.findUnique({ where: { email: normalizedEmail } });
-    if (adminUser) {
-      const isValid = await bcrypt.compare(password, adminUser.passwordHash);
-      if (!isValid) {
-        await logAuthEvent(adminUser.id, 'failed_login', req);
-        res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
-        return;
+    // 1. Authenticate with Supabase Auth
+    const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+
+    if (supaError || !supaData.session) {
+      await logAuthEvent(null, 'failed_login', req);
+      res.status(401).json({ status: 'error', message: supaError?.message || 'Invalid credentials.' });
+      return;
+    }
+
+    const supaUser = supaData.user;
+    const accessToken = supaData.session.access_token;
+    const refreshToken = supaData.session.refresh_token;
+
+    // 2. Identify user's role from local DB
+    let role = 'USER';
+    const admin = await prisma.adminUser.findUnique({ where: { id: supaUser.id } });
+    if (admin) {
+      role = 'ADMIN';
+    } else {
+      const customer = await prisma.user.findUnique({ where: { id: supaUser.id } });
+      if (!customer) {
+        // Safe JIT syncing if user exists in Supabase but not yet in local public schema
+        const user_name = supaUser.user_metadata?.name || 'User';
+        await prisma.user.create({
+          data: {
+            id: supaUser.id,
+            email: normalizedEmail,
+            name: user_name,
+            phone: supaUser.phone || '',
+            isEmailVerified: supaUser.email_confirmed_at !== null,
+          }
+        });
       }
-      
-      const payload = { id: adminUser.id, email: adminUser.email, role: adminUser.role, tokenVersion: adminUser.tokenVersion };
-      const accessToken = generateAccessToken(payload);
-      const refreshToken = generateRefreshToken(payload);
-      
-      setAuthCookies(res, accessToken, refreshToken);
-      await logAuthEvent(adminUser.id, 'login', req);
-
-      res.status(200).json({
-        status: 'success',
-        data: { user: payload },
-      });
-      return;
     }
 
-    // Check regular users
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (!user || !user.password) {
-      await logAuthEvent(user?.id || null, 'failed_login', req);
-      res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
-      return;
-    }
-
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      await logAuthEvent(user.id, 'failed_login', req);
-      res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
-      return;
-    }
-
-    const payload = { id: user.id, email: user.email, role: 'USER', tokenVersion: user.tokenVersion };
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-    
     setAuthCookies(res, accessToken, refreshToken);
-    await logAuthEvent(user.id, 'login', req);
+    await logAuthEvent(supaUser.id, 'login', req);
 
     res.status(200).json({
       status: 'success',
-      data: { user: { id: user.id, email: user.email, name: user.name, role: 'USER' } },
+      data: { user: { id: supaUser.id, email: supaUser.email, role } },
     });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -76,25 +69,48 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const { name, email, password, phone } = req.body;
     const normalizedEmail = email ? email.trim().toLowerCase() : '';
 
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existing) {
-      res.status(409).json({ status: 'error', message: 'Email already registered.' });
+    // 1. Sign up user in Supabase Auth
+    const { data: supaData, error: supaError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        data: { name },
+      },
+    });
+
+    if (supaError || !supaData.user) {
+      res.status(400).json({ status: 'error', message: supaError?.message || 'Registration failed.' });
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const user = await prisma.user.create({
-      data: { name, email: normalizedEmail, password: hashedPassword, phone },
-    });
+    const supaUser = supaData.user;
 
+    // 2. Double check if user already exists in local DB, insert if not
+    let user = await prisma.user.findUnique({ where: { id: supaUser.id } });
+    if (!user) {
+      // Hash password locally as well for backup/co-existence logic
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      user = await prisma.user.create({
+        data: {
+          id: supaUser.id,
+          name,
+          email: normalizedEmail,
+          password: hashedPassword,
+          phone,
+        },
+      });
+    }
+
+    // Send verification mail using the existing email service
     const vToken = await generateVerificationToken(user.email);
     await sendVerificationEmail(user.email, vToken);
 
-    const payload = { id: user.id, email: user.email, role: 'USER', tokenVersion: user.tokenVersion };
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-    
-    setAuthCookies(res, accessToken, refreshToken);
+    const accessToken = supaData.session?.access_token || '';
+    const refreshToken = supaData.session?.refresh_token || '';
+
+    if (accessToken && refreshToken) {
+      setAuthCookies(res, accessToken, refreshToken);
+    }
     await logAuthEvent(user.id, 'register', req);
 
     res.status(201).json({
@@ -108,21 +124,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const logout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    if (req.user) {
-      // Increment token version to invalidate refresh tokens
-      if (req.user.role === 'ADMIN') {
-        await prisma.adminUser.update({
-          where: { id: req.user.id },
-          data: { tokenVersion: { increment: 1 } }
-        });
-      } else {
-        await prisma.user.update({
-          where: { id: req.user.id },
-          data: { tokenVersion: { increment: 1 } }
-        });
-      }
-    }
-    
+    await supabase.auth.signOut();
     await logAuthEvent(req.user?.id || null, 'logout', req as Request);
     clearAuthCookies(res);
     res.status(200).json({ status: 'success', message: 'Logged out successfully.' });
@@ -137,8 +139,6 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
       res.status(401).json({ status: 'error', message: 'Not authenticated.' });
       return;
     }
-
-    // Return the pre-fetched user details from authMiddleware directly (zero DB roundtrips)
     res.status(200).json({ status: 'success', data: req.user });
   } catch (error: any) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -155,7 +155,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Password strength check (backend validation)
+    // Password strength check
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
@@ -174,7 +174,6 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Security: If phone is set on the user account, require it to match
     if (user.phone) {
       if (!phone || phone.trim() !== user.phone.trim()) {
         res.status(400).json({ status: 'error', message: 'Verification details (phone number) do not match.' });
@@ -182,14 +181,22 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    // Reset password in Supabase Auth
+    const { error: supaError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      password: password,
+    });
 
-    // Update user password and increment tokenVersion to revoke old sessions
+    if (supaError) {
+      res.status(400).json({ status: 'error', message: supaError.message });
+      return;
+    }
+
+    // Reset password in local DB
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await prisma.user.update({
       where: { email: normalizedEmail },
       data: {
         password: hashedPassword,
-        tokenVersion: { increment: 1 }
       }
     });
 
@@ -224,7 +231,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { email: resetToken.email }
     });
 
@@ -233,7 +240,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Password strength check (backend validation)
+    // Password strength check
     const hasUppercase = /[A-Z]/.test(password);
     const hasLowercase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
@@ -246,18 +253,25 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    // Reset password in Supabase Auth
+    const { error: supaError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      password: password,
+    });
 
-    // Update user password and increment tokenVersion to revoke old sessions
+    if (supaError) {
+      res.status(400).json({ status: 'error', message: supaError.message });
+      return;
+    }
+
+    // Reset locally
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await prisma.user.update({
       where: { email: resetToken.email },
       data: {
         password: hashedPassword,
-        tokenVersion: { increment: 1 }
       }
     });
 
-    // Delete token (single-use)
     await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
 
     res.status(200).json({ status: 'success', message: 'Your password has been successfully reset.' });
@@ -269,52 +283,56 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {
   try {
     const { idToken } = req.body;
-    const payload = await verifyGoogleToken(idToken);
-    
-    // Find user by googleId or email
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { googleId: payload.sub },
-          { email: payload.email }
-        ]
-      }
+
+    // 1. Authenticate with Google in Supabase
+    const { data: supaData, error: supaError } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: idToken,
     });
 
-    if (user) {
-      // Safe linking: Only link if Google says verified and our DB says verified (or we trust Google implicitly if the user signed up via local but never verified). Wait, the plan said:
-      // "Only auto-link if both Google's payload and the DB's isEmailVerified are true. Otherwise, throw an error requiring password confirmation to link."
-      // Let's implement strict linking:
-      if (!user.googleId) {
-        if (user.isEmailVerified && payload.email_verified) {
-          // Link it automatically
-          user = await prisma.user.update({
-            where: { id: user.id },
-            data: { googleId: payload.sub, authProvider: 'GOOGLE', avatar: user.avatar || payload.picture }
-          });
-        } else {
-          res.status(401).json({ status: 'error', message: 'Email address already registered. Please log in with your password to link your Google account.' });
-          return;
-        }
-      }
-    } else {
-      // Create new user
-      user = await prisma.user.create({
-        data: {
-          email: payload.email!,
-          name: payload.name || 'Google User',
-          googleId: payload.sub,
-          authProvider: 'GOOGLE',
-          avatar: payload.picture,
-          isEmailVerified: true // From Google
-        }
-      });
+    if (supaError || !supaData.session) {
+      res.status(401).json({ status: 'error', message: supaError?.message || 'Google login failed.' });
+      return;
     }
 
-    const tokenPayload = { id: user.id, email: user.email, role: 'USER', tokenVersion: user.tokenVersion };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
-    
+    const supaUser = supaData.user;
+    const accessToken = supaData.session.access_token;
+    const refreshToken = supaData.session.refresh_token;
+
+    // 2. Find or create user in local DB
+    let user = await prisma.user.findUnique({ where: { id: supaUser.id } });
+
+    if (!user) {
+      // Check by email to support auto linking
+      user = await prisma.user.findUnique({ where: { email: supaUser.email } });
+      if (user) {
+        // Link the account with the new Supabase ID
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            id: supaUser.id,
+            googleId: supaUser.id,
+            authProvider: 'GOOGLE',
+            avatar: user.avatar || supaUser.user_metadata?.avatar_url,
+            isEmailVerified: true
+          }
+        });
+      } else {
+        // Create new user
+        user = await prisma.user.create({
+          data: {
+            id: supaUser.id,
+            email: supaUser.email!,
+            name: supaUser.user_metadata?.name || 'Google User',
+            googleId: supaUser.id,
+            authProvider: 'GOOGLE',
+            avatar: supaUser.user_metadata?.avatar_url,
+            isEmailVerified: true
+          }
+        });
+      }
+    }
+
     setAuthCookies(res, accessToken, refreshToken);
     await logAuthEvent(user.id, 'google_login', req);
 
@@ -335,25 +353,19 @@ export const refreshTokens = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const decoded = verifyRefreshToken(token);
+    // Refresh session in Supabase Auth
+    const { data: supaData, error: supaError } = await supabase.auth.refreshSession({
+      refresh_token: token,
+    });
 
-    // Verify tokenVersion
-    let tokenVersion: number;
-    if (decoded.role === 'ADMIN') {
-      const admin = await prisma.adminUser.findUnique({ where: { id: decoded.id }, select: { tokenVersion: true } });
-      if (!admin || admin.tokenVersion !== decoded.tokenVersion) throw new Error('Session revoked');
-      tokenVersion = admin.tokenVersion;
-    } else {
-      const user = await prisma.user.findUnique({ where: { id: decoded.id }, select: { tokenVersion: true } });
-      if (!user || user.tokenVersion !== decoded.tokenVersion) throw new Error('Session revoked');
-      tokenVersion = user.tokenVersion;
+    if (supaError || !supaData.session) {
+      throw supaError || new Error('Session refresh failed');
     }
 
-    const payload = { id: decoded.id, email: decoded.email, role: decoded.role, tokenVersion };
-    const newAccessToken = generateAccessToken(payload);
-    
-    // We only need to set the new access token
-    res.cookie('deevuh_token', newAccessToken, getAccessCookieOptions(req));
+    const newAccessToken = supaData.session.access_token;
+    const newRefreshToken = supaData.session.refresh_token;
+
+    setAuthCookies(res, newAccessToken, newRefreshToken);
 
     res.status(200).json({ status: 'success', message: 'Token refreshed.' });
   } catch (error: any) {
@@ -388,9 +400,24 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const user = await prisma.user.findFirst({
+      where: { email: verification.email }
+    });
+
+    if (!user) {
+      res.status(400).json({ status: 'error', message: 'User not found.' });
+      return;
+    }
+
+    // Update locally
     await prisma.user.update({
       where: { email: verification.email },
       data: { isEmailVerified: true }
+    });
+
+    // Confirm in Supabase Auth
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      email_confirm: true,
     });
 
     await prisma.emailVerificationToken.delete({ where: { id: verification.id } });
