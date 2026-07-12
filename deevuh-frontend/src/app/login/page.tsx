@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import api from '@/lib/api';
 import { useCart } from '@/context/CartContext';
+import { supabase } from '@/lib/supabase';
 
 // Inner component that uses useSearchParams — must be wrapped in Suspense
 function LoginForm() {
@@ -45,8 +46,27 @@ function LoginForm() {
     try {
       let res;
       if (isRegistering) {
+        // 1. Authenticate and register user in Supabase Auth
+        const { data: supaData, error: supaError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name },
+          },
+        });
+        if (supaError) throw supaError;
+
+        // 2. Call the legacy backend register API to keep DB synced and set custom cookies
         res = await api.post('/auth/register', { name, email, password });
       } else {
+        // 1. Authenticate user in Supabase Auth
+        const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (supaError) throw supaError;
+
+        // 2. Call the legacy backend login API to issue custom cookies
         res = await api.post('/auth/login', { email, password });
       }
       
@@ -77,6 +97,19 @@ function LoginForm() {
     try {
       setIsLoading(true);
       setError('');
+
+      if (!credentialResponse.credential) {
+        throw new Error('Google credential token is missing.');
+      }
+
+      // 1. Authenticate with Google in Supabase Auth using the ID token
+      const { data: supaData, error: supaError } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: credentialResponse.credential,
+      });
+      if (supaError) throw supaError;
+
+      // 2. Call the legacy backend Google auth endpoint to set custom backend cookies
       const res = await api.post('/auth/google', { idToken: credentialResponse.credential });
       
       // Update global auth state before redirecting

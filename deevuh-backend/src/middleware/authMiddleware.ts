@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../modules/auth/token.service.js';
 import prisma from '../config/database.js';
+import { supabase } from '../config/supabase.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
@@ -27,34 +27,43 @@ export const authMiddleware = async (
       return;
     }
 
-    const decoded = verifyAccessToken(token);
-
-    // Strict validation: check tokenVersion against the database depending on role
-    let dbUserTokenVersion: number | null = null;
-    let fullUserData: any = null;
+    // 1. Verify token with Supabase Auth
+    const { data: { user: supaUser }, error: supaError } = await supabase.auth.getUser(token);
+    
+    if (supaError || !supaUser) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Token expired or invalid.',
+      });
+      return;
+    }
 
     // Detect if this is the getMe request to combine token check and data fetch
     const isGetMe = req.baseUrl === '/api/auth' && (req.path === '/me' || req.path === '/me/');
 
-    if (decoded.role === 'ADMIN') {
-      const admin: any = await prisma.adminUser.findUnique({
-        where: { id: decoded.id },
-        select: isGetMe 
-          ? { tokenVersion: true, id: true, email: true, role: true }
-          : { tokenVersion: true }
-      });
-      if (admin) {
-        dbUserTokenVersion = admin.tokenVersion;
-        if (isGetMe) {
-          fullUserData = { id: admin.id, email: admin.email, role: admin.role };
-        }
+    // 2. Query local database to identify role and fetch details
+    let role = 'USER';
+    let fullUserData: any = null;
+
+    // Check if user is an Administrator first
+    const admin: any = await prisma.adminUser.findUnique({
+      where: { id: supaUser.id },
+      select: isGetMe 
+        ? { id: true, email: true, role: true }
+        : { id: true }
+    });
+
+    if (admin) {
+      role = 'ADMIN';
+      if (isGetMe) {
+        fullUserData = { id: admin.id, email: admin.email, role: admin.role };
       }
     } else {
-      const user: any = await prisma.user.findUnique({
-        where: { id: decoded.id },
+      // Otherwise find customer details
+      const customer: any = await prisma.user.findUnique({
+        where: { id: supaUser.id },
         select: isGetMe 
           ? {
-              tokenVersion: true,
               id: true,
               name: true,
               email: true,
@@ -68,28 +77,26 @@ export const authMiddleware = async (
               height: true,
               fit: true,
             }
-          : { tokenVersion: true }
+          : { id: true }
       });
-      if (user) {
-        dbUserTokenVersion = user.tokenVersion;
-        if (isGetMe) {
-          fullUserData = { ...user };
-        }
+
+      if (!customer) {
+        res.status(401).json({
+          status: 'error',
+          message: 'User profile not found in local database.',
+        });
+        return;
+      }
+
+      if (isGetMe) {
+        fullUserData = { ...customer };
       }
     }
 
-    // If user not found, or tokenVersion is old (was rotated), reject
-    if (dbUserTokenVersion === null || dbUserTokenVersion !== decoded.tokenVersion) {
-      res.status(401).json({
-        status: 'error',
-        message: 'Session revoked or invalid.',
-      });
-      return;
-    }
-
     req.user = isGetMe && fullUserData 
-      ? { ...fullUserData, role: decoded.role } 
-      : { id: decoded.id, role: decoded.role, email: decoded.email };
+      ? { ...fullUserData, role } 
+      : { id: supaUser.id, role, email: supaUser.email };
+      
     next();
   } catch (error) {
     res.status(401).json({
@@ -98,3 +105,4 @@ export const authMiddleware = async (
     });
   }
 };
+

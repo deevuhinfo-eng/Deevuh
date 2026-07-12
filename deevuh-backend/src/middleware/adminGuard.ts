@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../modules/auth/token.service.js';
-import { prisma } from '../config/database.js';
+import { supabase } from '../config/supabase.js';
+import prisma from '../config/database.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: { id: string; role: string; email: string };
@@ -26,9 +26,24 @@ export const adminGuard = async (
       return;
     }
 
-    const decoded = verifyAccessToken(token);
+    // 1. Verify token with Supabase Auth
+    const { data: { user: supaUser }, error: supaError } = await supabase.auth.getUser(token);
 
-    if (decoded.role !== 'ADMIN') {
+    if (supaError || !supaUser) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Authorization token expired or invalid.',
+      });
+      return;
+    }
+
+    // 2. Query local database to verify administrative privileges
+    const admin = await prisma.adminUser.findUnique({
+      where: { id: supaUser.id },
+      select: { id: true, email: true, role: true }
+    });
+
+    if (!admin) {
       res.status(403).json({
         status: 'error',
         message: 'Access denied: Administrative privileges required.',
@@ -36,20 +51,11 @@ export const adminGuard = async (
       return;
     }
 
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: decoded.id },
-      select: { tokenVersion: true }
-    });
-
-    if (!admin || admin.tokenVersion !== decoded.tokenVersion) {
-      res.status(401).json({
-        status: 'error',
-        message: 'Session revoked or invalid.',
-      });
-      return;
-    }
-
-    req.user = decoded;
+    req.user = {
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+    };
     next();
   } catch (error) {
     res.status(401).json({
@@ -58,3 +64,4 @@ export const adminGuard = async (
     });
   }
 };
+
