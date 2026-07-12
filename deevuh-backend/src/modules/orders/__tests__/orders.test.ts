@@ -1,7 +1,7 @@
 import request from 'supertest';
 import app from '../../../app.js';
 import prisma from '../../../config/database.js';
-import { verifyAccessToken } from '../../auth/token.service.js';
+import { supabase } from '../../../config/supabase.js';
 
 jest.mock('../../../config/database.js', () => {
   const client = {
@@ -29,9 +29,13 @@ jest.mock('../../../config/database.js', () => {
   };
 });
 
-// Mock Token Service
-jest.mock('../../auth/token.service.js', () => ({
-  verifyAccessToken: jest.fn(),
+// Mock Supabase Config
+jest.mock('../../../config/supabase.js', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+    },
+  },
 }));
 
 describe('Order Lifecycle, State Transitions & IDOR Tests', () => {
@@ -85,7 +89,7 @@ describe('Order Lifecycle, State Transitions & IDOR Tests', () => {
 
   describe('Order Ownership (IDOR Protection)', () => {
     it('should allow retrieving the order details if the user is the owner', async () => {
-      (verifyAccessToken as jest.Mock).mockReturnValue(mockUserPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUserPayload }, error: null });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
 
@@ -106,7 +110,7 @@ describe('Order Lifecycle, State Transitions & IDOR Tests', () => {
         tokenVersion: 0,
       };
 
-      (verifyAccessToken as jest.Mock).mockReturnValue(foreignUserPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: foreignUserPayload }, error: null });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
 
@@ -121,7 +125,7 @@ describe('Order Lifecycle, State Transitions & IDOR Tests', () => {
 
   describe('Order State Machine validation (PUT /api/orders/status)', () => {
     it('should allow valid transition CREATED -> CANCELLED', async () => {
-      (verifyAccessToken as jest.Mock).mockReturnValue(mockAdminPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockAdminPayload }, error: null });
       (prisma.adminUser.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
       (prisma.order.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
@@ -139,7 +143,7 @@ describe('Order Lifecycle, State Transitions & IDOR Tests', () => {
     it('should reject invalid transition DELIVERED -> CREATED', async () => {
       const deliveredOrder = { ...mockOrder, orderStatus: 'DELIVERED' };
 
-      (verifyAccessToken as jest.Mock).mockReturnValue(mockAdminPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockAdminPayload }, error: null });
       (prisma.adminUser.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(deliveredOrder);
 

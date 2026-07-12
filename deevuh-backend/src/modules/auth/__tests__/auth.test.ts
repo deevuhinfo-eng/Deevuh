@@ -3,7 +3,7 @@ import app from '../../../app.js';
 import prisma from '../../../config/database.js';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import { supabase, supabaseAdmin } from '../../../config/supabase.js';
 
 // Mock Prisma
 jest.mock('../../../config/database.js', () => ({
@@ -26,6 +26,26 @@ jest.mock('../../../config/database.js', () => ({
     },
     authLog: {
       create: jest.fn(),
+    },
+  },
+}));
+
+// Mock Supabase Config
+jest.mock('../../../config/supabase.js', () => ({
+  supabase: {
+    auth: {
+      signInWithPassword: jest.fn(),
+      signInWithIdToken: jest.fn(),
+      signOut: jest.fn(),
+      setSession: jest.fn(),
+      refreshSession: jest.fn(),
+    },
+  },
+  supabaseAdmin: {
+    auth: {
+      admin: {
+        updateUserById: jest.fn(),
+      },
     },
   },
 }));
@@ -86,6 +106,21 @@ describe('Authentication Hardening Integration Tests', () => {
       (prisma.adminUser.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
 
+      // Mock Supabase signInWithPassword response
+      (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+        data: {
+          user: {
+            id: mockUser.id,
+            email: mockUser.email,
+          },
+          session: {
+            access_token: 'mock-access-token',
+            refresh_token: 'mock-refresh-token',
+          },
+        },
+        error: null,
+      });
+
       // We need to bypass bcrypt check inside integration tests safely by mocking bcrypt
       const compareSpy = jest.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
 
@@ -131,7 +166,9 @@ describe('Authentication Hardening Integration Tests', () => {
       };
 
       (prisma.emailVerificationToken.findUnique as jest.Mock).mockResolvedValue(mockVerificationRecord);
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue(mockUser);
       (prisma.user.update as jest.Mock).mockResolvedValue({ ...mockUser, isEmailVerified: true });
+      (supabaseAdmin.auth.admin.updateUserById as jest.Mock).mockResolvedValue({ error: null });
 
       const res = await request(app)
         .get(`/api/auth/verify-email?token=${rawToken}`);
@@ -146,6 +183,7 @@ describe('Authentication Hardening Integration Tests', () => {
       expect(prisma.emailVerificationToken.delete).toHaveBeenCalledWith({
         where: { id: mockVerificationRecord.id }
       });
+      expect(supabaseAdmin.auth.admin.updateUserById).toHaveBeenCalledWith(mockUser.id, { email_confirm: true });
     });
 
     it('should reject verification if token has expired', async () => {
@@ -172,33 +210,55 @@ describe('Authentication Hardening Integration Tests', () => {
     });
   });
 
-  describe('Token Rotation & Session Invalidation (Race/Drift Edge Cases)', () => {
-    it('should reject refresh if user tokenVersion has mutated in the database', async () => {
-      // Create a refresh token with tokenVersion: 0
-      const testRefreshToken = jwt.sign(
-        { id: mockUser.id, email: mockUser.email, role: 'USER', tokenVersion: 0 },
-        process.env.JWT_REFRESH_SECRET || 'dummy_refresh_secret',
-        { expiresIn: '7d' }
-      );
-
-      // Database has tokenVersion: 1 (compromised/revoked session state)
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        ...mockUser,
-        tokenVersion: 1, 
-      });
-
+  describe('Token Refresh (Supabase Token Refresh)', () => {
+    it('should successfully refresh session tokens using refresh token cookie', async () => {
       await fetchCsrf();
+
+      (supabase.auth.refreshSession as jest.Mock).mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'new-access-token',
+            refresh_token: 'new-refresh-token',
+          },
+          user: {
+            id: mockUser.id,
+            email: mockUser.email,
+          },
+        },
+        error: null,
+      });
 
       const res = await request(app)
         .post('/api/auth/refresh')
-        .set('Cookie', [csrfCookie, `deevuh_refresh_token=${testRefreshToken}`])
+        .set('Cookie', [csrfCookie, `deevuh_refresh_token=valid-refresh-token`])
+        .set('x-xsrf-token', csrfToken);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      
+      const cookies = (res.headers['set-cookie'] as unknown as string[]) || [];
+      const accessTokenCookie = cookies.find((c: string) => c.startsWith('deevuh_token='));
+      expect(accessTokenCookie).toContain('deevuh_token=new-access-token');
+      
+      const refreshTokenCookie = cookies.find((c: string) => c.startsWith('deevuh_refresh_token='));
+      expect(refreshTokenCookie).toContain('deevuh_refresh_token=new-refresh-token');
+    });
+
+    it('should reject refresh if Supabase returns session error', async () => {
+      await fetchCsrf();
+
+      (supabase.auth.refreshSession as jest.Mock).mockResolvedValue({
+        data: { session: null, user: null },
+        error: { message: 'Invalid token' },
+      });
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .set('Cookie', [csrfCookie, `deevuh_refresh_token=invalid-refresh-token`])
         .set('x-xsrf-token', csrfToken);
 
       expect(res.status).toBe(401);
       expect(res.body.message).toContain('Invalid or expired refresh token');
-      expect(prisma.authLog.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ action: 'refresh_failed' })
-      }));
     });
   });
 });

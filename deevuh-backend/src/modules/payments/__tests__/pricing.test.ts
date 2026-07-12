@@ -1,7 +1,7 @@
 import request from 'supertest';
 import app from '../../../app.js';
 import prisma from '../../../config/database.js';
-import { verifyAccessToken } from '../../auth/token.service.js';
+import { supabase } from '../../../config/supabase.js';
 
 jest.mock('../../../config/database.js', () => {
   const client = {
@@ -41,8 +41,12 @@ jest.mock('../../../config/database.js', () => {
   };
 });
 
-jest.mock('../../auth/token.service.js', () => ({
-  verifyAccessToken: jest.fn(),
+jest.mock('../../../config/supabase.js', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+    },
+  },
 }));
 
 describe('Pricing Pipeline Verification Tests', () => {
@@ -83,7 +87,7 @@ describe('Pricing Pipeline Verification Tests', () => {
 
   describe('Product Price Update Syncing', () => {
     it('should update associated product variants when basePrice is updated', async () => {
-      (verifyAccessToken as jest.Mock).mockReturnValue(mockAdminPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockAdminPayload }, error: null });
       (prisma.adminUser.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
       (prisma.product.update as jest.Mock).mockResolvedValue({ id: 'prod-123' });
       (prisma.productVariant.updateMany as jest.Mock).mockResolvedValue({ count: 3 });
@@ -113,7 +117,8 @@ describe('Pricing Pipeline Verification Tests', () => {
 
   describe('Checkout Recalculation using Product basePrice', () => {
     it('should use Product.basePrice (authoritative) even if ProductVariant.price is stale during checkout', async () => {
-      (verifyAccessToken as jest.Mock).mockReturnValue(mockUserPayload);
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUserPayload }, error: null });
+      (prisma.adminUser.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ tokenVersion: 0 });
 
       // Stale variant price in the database is 1999.00

@@ -12,7 +12,7 @@ import { authMiddleware, AuthenticatedRequest } from '../../middleware/authMiddl
 import { adminGuard } from '../../middleware/adminGuard.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
 import { createReviewSchema, updateReviewSchema } from './reviews.schemas.js';
-import { verifyAccessToken } from '../auth/token.service.js';
+import { supabase } from '../../config/supabase.js';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -37,8 +37,10 @@ const optionalAuth = async (req: AuthenticatedRequest, res: any, next: any) => {
       token = req.headers.authorization.split(' ')[1];
     }
     if (token) {
-      const decoded = verifyAccessToken(token);
-      req.user = decoded;
+      const { data: { user: supaUser } } = await supabase.auth.getUser(token);
+      if (supaUser) {
+        req.user = { id: supaUser.id, email: supaUser.email, role: 'USER' };
+      }
     }
   } catch (error) {
     // Ignore error, proceed as unauthenticated

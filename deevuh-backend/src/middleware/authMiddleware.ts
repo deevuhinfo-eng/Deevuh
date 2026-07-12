@@ -27,8 +27,13 @@ export const authMiddleware = async (
       return;
     }
 
+    console.log('[Debug AuthMiddleware] token:', token);
+    console.log('[Debug AuthMiddleware] supabase.auth.getUser is:', supabase.auth.getUser);
+    
     // 1. Verify token with Supabase Auth
     const { data: { user: supaUser }, error: supaError } = await supabase.auth.getUser(token);
+    
+    console.log('[Debug AuthMiddleware] supaUser:', supaUser, 'supaError:', supaError);
     
     if (supaError || !supaUser) {
       res.status(401).json({
@@ -45,13 +50,14 @@ export const authMiddleware = async (
     let role = 'USER';
     let fullUserData: any = null;
 
-    // Check if user is an Administrator first
+    console.log('[Debug AuthMiddleware] querying adminUser...');
     const admin: any = await prisma.adminUser.findUnique({
       where: { id: supaUser.id },
       select: isGetMe 
         ? { id: true, email: true, role: true }
         : { id: true }
     });
+    console.log('[Debug AuthMiddleware] admin result:', admin);
 
     if (admin) {
       role = 'ADMIN';
@@ -60,6 +66,7 @@ export const authMiddleware = async (
       }
     } else {
       // Otherwise find customer details
+      console.log('[Debug AuthMiddleware] querying customer...');
       const customer: any = await prisma.user.findUnique({
         where: { id: supaUser.id },
         select: isGetMe 
@@ -79,6 +86,7 @@ export const authMiddleware = async (
             }
           : { id: true }
       });
+      console.log('[Debug AuthMiddleware] customer result:', customer);
 
       if (!customer) {
         res.status(401).json({
@@ -99,6 +107,7 @@ export const authMiddleware = async (
       
     next();
   } catch (error) {
+    console.error('[Debug AuthMiddleware] caught error:', error);
     res.status(401).json({
       status: 'error',
       message: 'Token expired or invalid.',
