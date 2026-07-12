@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
+import { validateFrontendEnv } from './env';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+const { url: supabaseUrl, anonKey: supabaseAnonKey } = validateFrontendEnv();
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  console.warn('Warning: NEXT_PUBLIC_SUPABASE_URL environment variable is missing.');
+if (process.env.NODE_ENV === 'development') {
+  console.log('Supabase URL loaded:', supabaseUrl);
+  const match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+  console.log('Supabase project reference:', match ? match[1] : 'Unknown');
+  console.log('Whether anon key exists:', !!supabaseAnonKey);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

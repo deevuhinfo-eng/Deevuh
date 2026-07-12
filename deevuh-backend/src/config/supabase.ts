@@ -1,13 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { validateBackendEnv } from './env';
+
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'placeholder-anon-key';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-key';
+const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: supabaseServiceRoleKey } = validateBackendEnv();
 
-if (!process.env.SUPABASE_URL) {
-  console.warn('Warning: SUPABASE_URL environment variable is missing.');
+if (process.env.NODE_ENV === 'development') {
+  console.log('Supabase URL loaded:', supabaseUrl);
+  const match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+  console.log('Supabase project reference:', match ? match[1] : 'Unknown');
+  console.log('Whether anon key exists:', !!supabaseAnonKey);
 }
 
 // 1. Standard client (anon privileges)
